@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Tag, Wallet, LogOut } from "lucide-react";
+import { Home, Tag, Wallet, LogOut, ArrowUpCircle, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     { path: "/", icon: Home, label: "Dashboard" },
     { path: "/categorias", icon: Tag, label: "Categorias" },
     { path: "/contas", icon: Wallet, label: "Contas" },
+    { path: "/transacoes", icon: ArrowUpCircle, label: "Transações" },
+    { path: "/relatorios", icon: BarChart3, label: "Relatórios" },
   ];
 
   return (
