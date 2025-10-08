@@ -115,44 +115,39 @@ const Reports = () => {
         .select("id, name, balance")
         .eq("user_id", user.id);
 
-      const dailyMap = new Map<string, Map<string, number>>();
+      // Sort transactions chronologically
+      const sortedTransactions = transactions?.sort((a, b) => a.date.localeCompare(b.date)) || [];
 
-      transactions
-        ?.sort((a, b) => a.date.localeCompare(b.date))
-        .forEach((t) => {
-          const date = t.date;
-          if (!dailyMap.has(date)) {
-            dailyMap.set(date, new Map());
-          }
-          const dayMap = dailyMap.get(date)!;
-          const currentBalance = dayMap.get(t.account_id) || 0;
-          const change = t.type === "receita" ? Number(t.amount) : -Number(t.amount);
-          dayMap.set(t.account_id, currentBalance + change);
-        });
-
-      const dailyBalancesList: DailyBalance[] = [];
+      // Calculate running balance for each account on each day
       const accountBalances = new Map<string, number>();
+      const dailyBalancesList: DailyBalance[] = [];
+      const processedDates = new Set<string>();
 
+      // Initialize balances at 0
       accounts?.forEach(acc => {
-        accountBalances.set(acc.id, Number(acc.balance));
+        accountBalances.set(acc.id, 0);
       });
 
-      Array.from(dailyMap.entries())
-        .sort((a, b) => b[0].localeCompare(a[0]))
-        .forEach(([date, accountMap]) => {
-          accountMap.forEach((balance, accountId) => {
-            const account = accounts?.find(a => a.id === accountId);
-            if (account) {
-              const currentBalance = accountBalances.get(accountId) || 0;
-              accountBalances.set(accountId, currentBalance);
-              dailyBalancesList.push({
-                date,
-                account_name: account.name,
-                balance: currentBalance,
-              });
-            }
+      // Process transactions chronologically
+      sortedTransactions.forEach((t) => {
+        const currentBalance = accountBalances.get(t.account_id) || 0;
+        const change = t.type === "receita" ? Number(t.amount) : -Number(t.amount);
+        const newBalance = currentBalance + change;
+        accountBalances.set(t.account_id, newBalance);
+
+        // Store end-of-day balance for this account on this date
+        const account = accounts?.find(a => a.id === t.account_id);
+        if (account) {
+          dailyBalancesList.push({
+            date: t.date,
+            account_name: account.name,
+            balance: newBalance,
           });
-        });
+        }
+      });
+
+      // Sort by date descending (most recent first)
+      dailyBalancesList.sort((a, b) => b.date.localeCompare(a.date));
 
       setDailyBalances(dailyBalancesList);
 
