@@ -46,6 +46,10 @@ const Transactions = () => {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [formData, setFormData] = useState({
     description: "",
     amount: "",
@@ -62,7 +66,7 @@ const Transactions = () => {
   useEffect(() => {
     checkAuth();
     fetchData();
-  }, []);
+  }, [selectedAccount, selectedCategory, startDate, endDate]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -73,8 +77,29 @@ const Transactions = () => {
 
   const fetchData = async () => {
     try {
+      let transQuery = supabase
+        .from("transactions")
+        .select("*")
+        .order("date", { ascending: false });
+
+      if (selectedAccount !== "all") {
+        transQuery = transQuery.eq("account_id", selectedAccount);
+      }
+
+      if (selectedCategory !== "all") {
+        transQuery = transQuery.eq("category_id", selectedCategory);
+      }
+
+      if (startDate) {
+        transQuery = transQuery.gte("date", startDate);
+      }
+
+      if (endDate) {
+        transQuery = transQuery.lte("date", endDate);
+      }
+
       const [transactionsRes, accountsRes, categoriesRes, subcategoriesRes] = await Promise.all([
-        supabase.from("transactions").select("*").order("date", { ascending: false }),
+        transQuery,
         supabase.from("accounts").select("id, name"),
         supabase.from("categories").select("id, name"),
         supabase.from("subcategories").select("id, name, category_id"),
@@ -264,133 +289,87 @@ const Transactions = () => {
                 </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="type">Tipo</Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value) => setFormData({ ...formData, type: value, category_id: "", subcategory_id: "" })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="receita">Receita</SelectItem>
-                      <SelectItem value="despesa">Despesa</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="description">Descrição</Label>
-                  <Input
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="amount">Valor</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="date">Data</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="account">Conta</Label>
-                  <Select
-                    value={formData.account_id}
-                    onValueChange={(value) => setFormData({ ...formData, account_id: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma conta" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>
-                          {account.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="category">Categoria</Label>
-                  <Select
-                    value={formData.category_id}
-                    onValueChange={(value) => setFormData({ ...formData, category_id: value, subcategory_id: "" })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma categoria" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {formData.category_id && filteredSubcategories.length > 0 && (
-                  <div>
-                    <Label htmlFor="subcategory">Subcategoria</Label>
-                    <Select
-                      value={formData.subcategory_id}
-                      onValueChange={(value) => setFormData({ ...formData, subcategory_id: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma subcategoria" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredSubcategories.map((subcategory) => (
-                          <SelectItem key={subcategory.id} value={subcategory.id}>
-                            {subcategory.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">
-                    {editingId ? "Atualizar" : "Criar"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setOpen(false);
-                      resetForm();
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                </div>
+...
               </form>
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Filtros */}
+        <Card className="bg-gradient-card">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div>
+                <Label htmlFor="start-date">Data Início</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="end-date">Data Fim</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="account-filter">Conta</Label>
+                <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as contas</SelectItem>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="category-filter">Categoria</Label>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setStartDate("");
+                    setEndDate("");
+                    setSelectedAccount("all");
+                    setSelectedCategory("all");
+                  }}
+                >
+                  Limpar Filtros
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="space-y-4">
           {transactions.length === 0 ? (
