@@ -54,6 +54,8 @@ const Reports = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedAccount, setSelectedAccount] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     category_id: "",
@@ -67,7 +69,7 @@ const Reports = () => {
   useEffect(() => {
     checkAuth();
     fetchData();
-  }, [selectedMonth, selectedAccount, selectedCategory]);
+  }, [selectedMonth, selectedAccount, selectedCategory, startDate, endDate]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -101,6 +103,14 @@ const Reports = () => {
       
       if (selectedCategory !== "all") {
         transQuery = transQuery.eq("category_id", selectedCategory);
+      }
+
+      if (startDate) {
+        transQuery = transQuery.gte("date", startDate);
+      }
+
+      if (endDate) {
+        transQuery = transQuery.lte("date", endDate);
       }
 
       const { data: transactions, error: transError } = await transQuery;
@@ -292,6 +302,82 @@ const Reports = () => {
           </p>
         </div>
 
+        {/* Filtros Globais */}
+        <Card className="bg-gradient-card">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div>
+                <Label htmlFor="start-date">Data Início</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="end-date">Data Fim</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="account-filter">Conta</Label>
+                <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as contas</SelectItem>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="category-filter">Categoria</Label>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setStartDate("");
+                    setEndDate("");
+                    setSelectedAccount("all");
+                    setSelectedCategory("all");
+                  }}
+                >
+                  Limpar Filtros
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="monthly" className="space-y-4">
           <TabsList>
             <TabsTrigger value="monthly">Saldo Mensal</TabsTrigger>
@@ -382,9 +468,9 @@ const Reports = () => {
           </TabsContent>
 
           <TabsContent value="budgets" className="space-y-4">
-            <div className="flex flex-wrap gap-4 items-end mb-4">
+            <div className="flex justify-between items-center">
               <div>
-                <Label htmlFor="month">Mês</Label>
+                <Label htmlFor="month">Mês do Orçamento</Label>
                 <Input
                   id="month"
                   type="month"
@@ -392,40 +478,6 @@ const Reports = () => {
                   onChange={(e) => setSelectedMonth(e.target.value)}
                   className="w-48"
                 />
-              </div>
-              
-              <div>
-                <Label htmlFor="account-filter">Conta</Label>
-                <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as contas</SelectItem>
-                    {accounts.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="category-filter">Categoria</Label>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as categorias</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
