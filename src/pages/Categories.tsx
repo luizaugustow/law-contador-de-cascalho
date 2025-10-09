@@ -14,14 +14,12 @@ import { z } from "zod";
 
 const categorySchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
-  type: z.enum(["receita", "despesa"], { required_error: "Tipo é obrigatório" }),
   color: z.string().regex(/^#[0-9A-F]{6}$/i, "Cor inválida"),
 });
 
 type Category = {
   id: string;
   name: string;
-  type: string;
   color: string;
   subcategories?: Subcategory[];
 };
@@ -39,7 +37,7 @@ const Categories = () => {
   const [subDialogOpen, setSubDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [formData, setFormData] = useState({ name: "", type: "receita", color: "#3B82F6" });
+  const [formData, setFormData] = useState({ name: "", color: "#3B82F6" });
   const [subFormData, setSubFormData] = useState({ name: "" });
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -118,7 +116,7 @@ const Categories = () => {
 
       setDialogOpen(false);
       setEditingCategory(null);
-      setFormData({ name: "", type: "receita", color: "#3B82F6" });
+      setFormData({ name: "", color: "#3B82F6" });
       fetchCategories();
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -265,23 +263,6 @@ const Categories = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="type">Tipo</Label>
-                    <Select
-                      value={formData.type}
-                      onValueChange={(value: "receita" | "despesa") =>
-                        setFormData({ ...formData, type: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="receita">Receita</SelectItem>
-                        <SelectItem value="despesa">Despesa</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
                     <Label htmlFor="color">Cor</Label>
                     <div className="flex gap-2">
                       <Input
@@ -329,13 +310,6 @@ const Categories = () => {
                         style={{ backgroundColor: category.color }}
                       />
                       <span>{category.name}</span>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        category.type === "receita"
-                          ? "bg-success/10 text-success"
-                          : "bg-destructive/10 text-destructive"
-                      }`}>
-                        {category.type}
-                      </span>
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -345,7 +319,6 @@ const Categories = () => {
                           setEditingCategory(category);
                           setFormData({
                             name: category.name,
-                            type: category.type as "receita" | "despesa",
                             color: category.color,
                           });
                           setDialogOpen(true);

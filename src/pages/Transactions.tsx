@@ -30,7 +30,6 @@ type Account = {
 type Category = {
   id: string;
   name: string;
-  type: string;
 };
 
 type Subcategory = {
@@ -77,7 +76,7 @@ const Transactions = () => {
       const [transactionsRes, accountsRes, categoriesRes, subcategoriesRes] = await Promise.all([
         supabase.from("transactions").select("*").order("date", { ascending: false }),
         supabase.from("accounts").select("id, name"),
-        supabase.from("categories").select("id, name, type"),
+        supabase.from("categories").select("id, name"),
         supabase.from("subcategories").select("id, name, category_id"),
       ]);
 
@@ -225,7 +224,6 @@ const Transactions = () => {
     return categories.find(c => c.id === id)?.name || "N/A";
   };
 
-  const filteredCategories = categories.filter(c => c.type === formData.type);
   const filteredSubcategories = subcategories.filter(s => s.category_id === formData.category_id);
 
   if (loading) {
@@ -344,7 +342,7 @@ const Transactions = () => {
                       <SelectValue placeholder="Selecione uma categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      {filteredCategories.map((category) => (
+                      {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}
                         </SelectItem>

@@ -37,7 +37,11 @@ type Budget = {
 type Category = {
   id: string;
   name: string;
-  type: string;
+};
+
+type Account = {
+  id: string;
+  name: string;
 };
 
 const Reports = () => {
@@ -45,8 +49,11 @@ const Reports = () => {
   const [dailyBalances, setDailyBalances] = useState<DailyBalance[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedAccount, setSelectedAccount] = useState<string>("all");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     category_id: "",
@@ -60,7 +67,7 @@ const Reports = () => {
   useEffect(() => {
     checkAuth();
     fetchData();
-  }, [selectedMonth]);
+  }, [selectedMonth, selectedAccount, selectedCategory]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -74,11 +81,29 @@ const Reports = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Fetch transactions
-      const { data: transactions, error: transError } = await supabase
+      // Fetch accounts
+      const { data: accountsData } = await supabase
+        .from("accounts")
+        .select("id, name, balance")
+        .eq("user_id", user.id);
+
+      setAccounts(accountsData || []);
+
+      // Fetch transactions with optional filters
+      let transQuery = supabase
         .from("transactions")
         .select("*")
         .eq("user_id", user.id);
+      
+      if (selectedAccount !== "all") {
+        transQuery = transQuery.eq("account_id", selectedAccount);
+      }
+      
+      if (selectedCategory !== "all") {
+        transQuery = transQuery.eq("category_id", selectedCategory);
+      }
+
+      const { data: transactions, error: transError } = await transQuery;
 
       if (transError) throw transError;
 
@@ -109,26 +134,20 @@ const Reports = () => {
 
       setMonthlyData(monthly);
 
-      // Calculate daily balances per account
-      const { data: accounts } = await supabase
-        .from("accounts")
-        .select("id, name, balance")
-        .eq("user_id", user.id);
-
+      // Calculate daily balances per account (with initial balance)
       // Sort transactions chronologically
       const sortedTransactions = transactions?.sort((a, b) => a.date.localeCompare(b.date)) || [];
 
       // Calculate running balance for each account on each day
       const accountBalances = new Map<string, number>();
       const dailyBalancesList: DailyBalance[] = [];
-      const processedDates = new Set<string>();
 
-      // Initialize balances at 0
-      accounts?.forEach(acc => {
-        accountBalances.set(acc.id, 0);
+      // Initialize balances with account initial balance
+      accountsData?.forEach(acc => {
+        accountBalances.set(acc.id, Number(acc.balance));
       });
 
-      // Process transactions chronologically
+      // Process transactions chronologically (they modify the running balance)
       sortedTransactions.forEach((t) => {
         const currentBalance = accountBalances.get(t.account_id) || 0;
         const change = t.type === "receita" ? Number(t.amount) : -Number(t.amount);
@@ -136,7 +155,7 @@ const Reports = () => {
         accountBalances.set(t.account_id, newBalance);
 
         // Store end-of-day balance for this account on this date
-        const account = accounts?.find(a => a.id === t.account_id);
+        const account = accountsData?.find(a => a.id === t.account_id);
         if (account) {
           dailyBalancesList.push({
             date: t.date,
@@ -161,9 +180,8 @@ const Reports = () => {
 
       const { data: categoriesData } = await supabase
         .from("categories")
-        .select("id, name, type")
-        .eq("user_id", user.id)
-        .eq("type", "despesa");
+        .select("id, name")
+        .eq("user_id", user.id);
 
       setCategories(categoriesData || []);
 
@@ -364,7 +382,7 @@ const Reports = () => {
           </TabsContent>
 
           <TabsContent value="budgets" className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap gap-4 items-end mb-4">
               <div>
                 <Label htmlFor="month">Mês</Label>
                 <Input
@@ -374,6 +392,40 @@ const Reports = () => {
                   onChange={(e) => setSelectedMonth(e.target.value)}
                   className="w-48"
                 />
+              </div>
+              
+              <div>
+                <Label htmlFor="account-filter">Conta</Label>
+                <Select value={selectedAccount} onValueChange={setSelectedAccount}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as contas</SelectItem>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="category-filter">Categoria</Label>
+                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
