@@ -23,7 +23,7 @@ type Transaction = {
   category_id: string | null;
   subcategory_id: string | null;
   observations: string | null;
-  tag_id: string | null;
+  tags?: Tag[];
 };
 
 type Account = {
@@ -70,7 +70,7 @@ const Transactions = () => {
     category_id: "",
     subcategory_id: "",
     observations: "",
-    tag_id: "",
+    tag_ids: [] as string[],
   });
 
   const navigate = useNavigate();
@@ -111,12 +111,13 @@ const Transactions = () => {
         transQuery = transQuery.lte("date", endDate);
       }
 
-      const [transactionsRes, accountsRes, categoriesRes, subcategoriesRes, tagsRes] = await Promise.all([
+      const [transactionsRes, accountsRes, categoriesRes, subcategoriesRes, tagsRes, transactionTagsRes] = await Promise.all([
         transQuery,
         supabase.from("accounts").select("id, name"),
         supabase.from("categories").select("id, name"),
         supabase.from("subcategories").select("id, name, category_id"),
         supabase.from("tags").select("id, name, color"),
+        supabase.from("transaction_tags").select("transaction_id, tag_id"),
       ]);
 
       if (transactionsRes.error) throw transactionsRes.error;
@@ -125,7 +126,20 @@ const Transactions = () => {
       if (subcategoriesRes.error) throw subcategoriesRes.error;
       if (tagsRes.error) throw tagsRes.error;
 
-      setTransactions(transactionsRes.data || []);
+      // Mapear tags para transações
+      const transactionsWithTags = (transactionsRes.data || []).map(transaction => {
+        const transactionTags = (transactionTagsRes.data || [])
+          .filter(tt => tt.transaction_id === transaction.id)
+          .map(tt => (tagsRes.data || []).find(tag => tag.id === tt.tag_id))
+          .filter(tag => tag !== undefined) as Tag[];
+        
+        return {
+          ...transaction,
+          tags: transactionTags
+        };
+      });
+
+      setTransactions(transactionsWithTags);
       setAccounts(accountsRes.data || []);
       setCategories(categoriesRes.data || []);
       setSubcategories(subcategoriesRes.data || []);
@@ -157,7 +171,6 @@ const Transactions = () => {
         category_id: formData.category_id || null,
         subcategory_id: formData.subcategory_id || null,
         observations: formData.observations || null,
-        tag_id: formData.tag_id && formData.tag_id !== "none" ? formData.tag_id : null,
         user_id: user.id,
       };
 
@@ -168,17 +181,52 @@ const Transactions = () => {
           .eq("id", editingId);
         
         if (error) throw error;
+
+        // Deletar tags antigas e inserir novas
+        await supabase
+          .from("transaction_tags")
+          .delete()
+          .eq("transaction_id", editingId);
+
+        if (formData.tag_ids.length > 0) {
+          const tagRecords = formData.tag_ids.map(tag_id => ({
+            transaction_id: editingId,
+            tag_id
+          }));
+          
+          const { error: tagError } = await supabase
+            .from("transaction_tags")
+            .insert(tagRecords);
+          
+          if (tagError) throw tagError;
+        }
         
         toast({
           title: "Transação atualizada",
           description: "A transação foi atualizada com sucesso.",
         });
       } else {
-        const { error } = await supabase
+        const { data: newTransaction, error } = await supabase
           .from("transactions")
-          .insert([transactionData]);
+          .insert([transactionData])
+          .select()
+          .single();
         
         if (error) throw error;
+
+        // Inserir tags
+        if (formData.tag_ids.length > 0 && newTransaction) {
+          const tagRecords = formData.tag_ids.map(tag_id => ({
+            transaction_id: newTransaction.id,
+            tag_id
+          }));
+          
+          const { error: tagError } = await supabase
+            .from("transaction_tags")
+            .insert(tagRecords);
+          
+          if (tagError) throw tagError;
+        }
         
         toast({
           title: "Transação criada",
@@ -209,7 +257,7 @@ const Transactions = () => {
       category_id: transaction.category_id || "",
       subcategory_id: transaction.subcategory_id || "",
       observations: transaction.observations || "",
-      tag_id: transaction.tag_id || "none",
+      tag_ids: transaction.tags?.map(t => t.id) || [],
     });
     setOpen(true);
   };
@@ -250,7 +298,7 @@ const Transactions = () => {
       category_id: "",
       subcategory_id: "",
       observations: "",
-      tag_id: "none",
+      tag_ids: [],
     });
     setEditingId(null);
   };
@@ -269,11 +317,6 @@ const Transactions = () => {
   const getCategoryName = (id: string | null) => {
     if (!id) return "N/A";
     return categories.find(c => c.id === id)?.name || "N/A";
-  };
-
-  const getTagName = (id: string | null) => {
-    if (!id) return null;
-    return tags.find(t => t.id === id);
   };
 
   const filteredSubcategories = subcategories.filter(s => s.category_id === formData.category_id);
@@ -427,17 +470,23 @@ const Transactions = () => {
                         <ArrowDownCircle className="h-8 w-8 text-destructive" />
                       )}
                       <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-semibold text-lg">{transaction.description}</h3>
-                          {getTagName(transaction.tag_id) && (
-                            <Badge 
-                              style={{ 
-                                backgroundColor: getTagName(transaction.tag_id)?.color,
-                                color: '#fff'
-                              }}
-                            >
-                              {getTagName(transaction.tag_id)?.name}
-                            </Badge>
+                          {transaction.tags && transaction.tags.length > 0 && (
+                            <div className="flex gap-1 flex-wrap">
+                              {transaction.tags.map(tag => (
+                                <Badge 
+                                  key={tag.id}
+                                  style={{ 
+                                    backgroundColor: tag.color,
+                                    color: '#fff'
+                                  }}
+                                  className="text-xs"
+                                >
+                                  {tag.name}
+                                </Badge>
+                              ))}
+                            </div>
                           )}
                         </div>
                         <div className="flex gap-4 text-sm text-muted-foreground mt-1">

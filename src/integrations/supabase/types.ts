@@ -166,6 +166,42 @@ export type Database = {
         }
         Relationships: []
       }
+      transaction_tags: {
+        Row: {
+          created_at: string
+          id: string
+          tag_id: string
+          transaction_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tag_id: string
+          transaction_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tag_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_tags_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           account_id: string
@@ -177,7 +213,6 @@ export type Database = {
           id: string
           observations: string | null
           subcategory_id: string | null
-          tag_id: string | null
           type: string
           updated_at: string
           user_id: string
@@ -192,7 +227,6 @@ export type Database = {
           id?: string
           observations?: string | null
           subcategory_id?: string | null
-          tag_id?: string | null
           type: string
           updated_at?: string
           user_id: string
@@ -207,7 +241,6 @@ export type Database = {
           id?: string
           observations?: string | null
           subcategory_id?: string | null
-          tag_id?: string | null
           type?: string
           updated_at?: string
           user_id?: string
@@ -232,13 +265,6 @@ export type Database = {
             columns: ["subcategory_id"]
             isOneToOne: false
             referencedRelation: "subcategories"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_tag_id_fkey"
-            columns: ["tag_id"]
-            isOneToOne: false
-            referencedRelation: "tags"
             referencedColumns: ["id"]
           },
         ]

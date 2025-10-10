@@ -3,6 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 
 type Account = {
   id: string;
@@ -35,7 +37,7 @@ type FormData = {
   category_id: string;
   subcategory_id: string;
   observations: string;
-  tag_id: string;
+  tag_ids: string[];
 };
 
 type TransactionFormProps = {
@@ -172,29 +174,75 @@ const TransactionForm = ({
       )}
 
       <div>
-        <Label htmlFor="tag">Tag (opcional)</Label>
-        <Select
-          value={formData.tag_id}
-          onValueChange={(value) => setFormData({ ...formData, tag_id: value })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione uma tag (opcional)" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Nenhuma</SelectItem>
-            {tags.map((tag) => (
-              <SelectItem key={tag.id} value={tag.id}>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: tag.color }}
-                  />
-                  {tag.name}
-                </div>
+        <Label htmlFor="tags">Tags (opcional)</Label>
+        <div className="space-y-2">
+          <Select
+            value="select-tag"
+            onValueChange={(value) => {
+              if (value !== "select-tag" && !formData.tag_ids.includes(value)) {
+                setFormData({ 
+                  ...formData, 
+                  tag_ids: [...formData.tag_ids, value] 
+                });
+              }
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Adicionar tag" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="select-tag" disabled>
+                Selecione uma tag
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              {tags
+                .filter(tag => !formData.tag_ids.includes(tag.id))
+                .map((tag) => (
+                  <SelectItem key={tag.id} value={tag.id}>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      {tag.name}
+                    </div>
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          
+          {formData.tag_ids.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {formData.tag_ids.map((tagId) => {
+                const tag = tags.find(t => t.id === tagId);
+                if (!tag) return null;
+                return (
+                  <Badge
+                    key={tagId}
+                    style={{ 
+                      backgroundColor: tag.color,
+                      color: '#fff'
+                    }}
+                    className="gap-1"
+                  >
+                    {tag.name}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({
+                          ...formData,
+                          tag_ids: formData.tag_ids.filter(id => id !== tagId)
+                        });
+                      }}
+                      className="ml-1 hover:opacity-70"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       <div>
