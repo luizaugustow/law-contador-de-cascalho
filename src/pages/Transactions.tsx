@@ -10,6 +10,8 @@ import Layout from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import TransactionForm from "@/components/TransactionForm";
 
 type Transaction = {
   id: string;
@@ -20,6 +22,8 @@ type Transaction = {
   account_id: string;
   category_id: string | null;
   subcategory_id: string | null;
+  observations: string | null;
+  tag_id: string | null;
 };
 
 type Account = {
@@ -38,11 +42,18 @@ type Subcategory = {
   category_id: string;
 };
 
+type Tag = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 const Transactions = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,6 +69,8 @@ const Transactions = () => {
     account_id: "",
     category_id: "",
     subcategory_id: "",
+    observations: "",
+    tag_id: "",
   });
 
   const navigate = useNavigate();
@@ -98,22 +111,25 @@ const Transactions = () => {
         transQuery = transQuery.lte("date", endDate);
       }
 
-      const [transactionsRes, accountsRes, categoriesRes, subcategoriesRes] = await Promise.all([
+      const [transactionsRes, accountsRes, categoriesRes, subcategoriesRes, tagsRes] = await Promise.all([
         transQuery,
         supabase.from("accounts").select("id, name"),
         supabase.from("categories").select("id, name"),
         supabase.from("subcategories").select("id, name, category_id"),
+        supabase.from("tags").select("id, name, color"),
       ]);
 
       if (transactionsRes.error) throw transactionsRes.error;
       if (accountsRes.error) throw accountsRes.error;
       if (categoriesRes.error) throw categoriesRes.error;
       if (subcategoriesRes.error) throw subcategoriesRes.error;
+      if (tagsRes.error) throw tagsRes.error;
 
       setTransactions(transactionsRes.data || []);
       setAccounts(accountsRes.data || []);
       setCategories(categoriesRes.data || []);
       setSubcategories(subcategoriesRes.data || []);
+      setTags(tagsRes.data || []);
     } catch (error: any) {
       toast({
         title: "Erro ao carregar dados",
@@ -140,6 +156,8 @@ const Transactions = () => {
         account_id: formData.account_id,
         category_id: formData.category_id || null,
         subcategory_id: formData.subcategory_id || null,
+        observations: formData.observations || null,
+        tag_id: formData.tag_id || null,
         user_id: user.id,
       };
 
@@ -190,6 +208,8 @@ const Transactions = () => {
       account_id: transaction.account_id,
       category_id: transaction.category_id || "",
       subcategory_id: transaction.subcategory_id || "",
+      observations: transaction.observations || "",
+      tag_id: transaction.tag_id || "",
     });
     setOpen(true);
   };
@@ -229,6 +249,8 @@ const Transactions = () => {
       account_id: "",
       category_id: "",
       subcategory_id: "",
+      observations: "",
+      tag_id: "",
     });
     setEditingId(null);
   };
@@ -247,6 +269,11 @@ const Transactions = () => {
   const getCategoryName = (id: string | null) => {
     if (!id) return "N/A";
     return categories.find(c => c.id === id)?.name || "N/A";
+  };
+
+  const getTagName = (id: string | null) => {
+    if (!id) return null;
+    return tags.find(t => t.id === id);
   };
 
   const filteredSubcategories = subcategories.filter(s => s.category_id === formData.category_id);
@@ -288,9 +315,16 @@ const Transactions = () => {
                   {editingId ? "Editar Transação" : "Nova Transação"}
                 </DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-...
-              </form>
+              <TransactionForm
+                formData={formData}
+                setFormData={setFormData}
+                accounts={accounts}
+                categories={categories}
+                subcategories={subcategories}
+                tags={tags}
+                filteredSubcategories={filteredSubcategories}
+                onSubmit={handleSubmit}
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -392,8 +426,20 @@ const Transactions = () => {
                       ) : (
                         <ArrowDownCircle className="h-8 w-8 text-destructive" />
                       )}
-                      <div>
-                        <h3 className="font-semibold text-lg">{transaction.description}</h3>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-lg">{transaction.description}</h3>
+                          {getTagName(transaction.tag_id) && (
+                            <Badge 
+                              style={{ 
+                                backgroundColor: getTagName(transaction.tag_id)?.color,
+                                color: '#fff'
+                              }}
+                            >
+                              {getTagName(transaction.tag_id)?.name}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex gap-4 text-sm text-muted-foreground mt-1">
                           <span>{new Date(transaction.date).toLocaleDateString("pt-BR")}</span>
                           <span>•</span>
@@ -401,6 +447,11 @@ const Transactions = () => {
                           <span>•</span>
                           <span>{getCategoryName(transaction.category_id)}</span>
                         </div>
+                        {transaction.observations && (
+                          <p className="text-sm text-muted-foreground mt-2 italic">
+                            {transaction.observations}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-4">

@@ -30,21 +30,32 @@ type Subcategory = {
   category_id: string;
 };
 
+type Tag = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 const Categories = () => {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [subDialogOpen, setSubDialogOpen] = useState(false);
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [formData, setFormData] = useState({ name: "", color: "#3B82F6" });
   const [subFormData, setSubFormData] = useState({ name: "" });
+  const [tagFormData, setTagFormData] = useState({ name: "", color: "#3B82F6" });
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     checkAuth();
     fetchCategories();
+    fetchTags();
   }, []);
 
   const checkAuth = async () => {
@@ -83,6 +94,24 @@ const Categories = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTags = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("tags")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setTags(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao carregar tags",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -213,6 +242,81 @@ const Categories = () => {
     }
   };
 
+  const handleTagSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      categorySchema.parse(tagFormData);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      if (editingTag) {
+        const { error } = await supabase
+          .from("tags")
+          .update({ name: tagFormData.name, color: tagFormData.color })
+          .eq("id", editingTag.id);
+
+        if (error) throw error;
+        toast({ title: "Tag atualizada com sucesso!" });
+      } else {
+        const { error } = await supabase
+          .from("tags")
+          .insert([{ name: tagFormData.name, color: tagFormData.color, user_id: user.id }]);
+
+        if (error) throw error;
+        toast({ title: "Tag criada com sucesso!" });
+      }
+
+      setTagDialogOpen(false);
+      setEditingTag(null);
+      setTagFormData({ name: "", color: "#3B82F6" });
+      fetchTags();
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Erro de validação",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Erro ao salvar tag",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  const handleDeleteTag = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir esta tag?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("tags")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({ title: "Tag excluída com sucesso!" });
+      fetchTags();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao excluir tag",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditTag = (tag: Tag) => {
+    setEditingTag(tag);
+    setTagFormData({ name: tag.name, color: tag.color });
+    setTagDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -228,9 +332,9 @@ const Categories = () => {
       <div className="space-y-6 animate-fade-in">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Categorias</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Categorias e Tags</h2>
             <p className="text-muted-foreground mt-1">
-              Gerencie suas categorias e subcategorias
+              Gerencie suas categorias, subcategorias e tags
             </p>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -407,6 +511,119 @@ const Categories = () => {
             ))}
           </div>
         )}
+
+        {/* Seção de Tags */}
+        <div className="mt-8">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-2xl font-bold tracking-tight">Tags</h3>
+              <p className="text-muted-foreground mt-1">
+                Gerencie suas tags para classificar transações
+              </p>
+            </div>
+            <Dialog open={tagDialogOpen} onOpenChange={setTagDialogOpen}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditingTag(null)} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Nova Tag
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingTag ? "Editar Tag" : "Nova Tag"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Preencha os dados da tag
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleTagSubmit}>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="tag-name">Nome</Label>
+                      <Input
+                        id="tag-name"
+                        value={tagFormData.name}
+                        onChange={(e) => setTagFormData({ ...tagFormData, name: e.target.value })}
+                        placeholder="Ex: Urgente"
+                        required
+                        maxLength={100}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="tag-color">Cor</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="tag-color"
+                          type="color"
+                          value={tagFormData.color}
+                          onChange={(e) => setTagFormData({ ...tagFormData, color: e.target.value })}
+                          className="w-20"
+                        />
+                        <Input
+                          value={tagFormData.color}
+                          onChange={(e) => setTagFormData({ ...tagFormData, color: e.target.value })}
+                          placeholder="#3B82F6"
+                          pattern="^#[0-9A-F]{6}$"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter className="mt-6">
+                    <Button type="submit">Salvar</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {tags.length === 0 ? (
+            <Card className="bg-gradient-card">
+              <CardContent className="py-12 text-center">
+                <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">
+                  Nenhuma tag cadastrada ainda.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
+              {tags.map((tag) => (
+                <Card key={tag.id} className="bg-gradient-card shadow-sm hover:shadow-md transition-all">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: tag.color }}
+                        />
+                        <span className="font-medium">{tag.name}</span>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleEditTag(tag)}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleDeleteTag(tag.id)}
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   );
