@@ -172,7 +172,7 @@ const TransactionForm = ({
       )}
 
       <div>
-        <Label htmlFor="tag">Tag</Label>
+        <Label htmlFor="tag">Tag (opcional)</Label>
         <Select
           value={formData.tag_id}
           onValueChange={(value) => setFormData({ ...formData, tag_id: value })}
@@ -181,7 +181,7 @@ const TransactionForm = ({
             <SelectValue placeholder="Selecione uma tag (opcional)" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Nenhuma</SelectItem>
+            <SelectItem value="none">Nenhuma</SelectItem>
             {tags.map((tag) => (
               <SelectItem key={tag.id} value={tag.id}>
                 <div className="flex items-center gap-2">

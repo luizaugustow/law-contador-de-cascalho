@@ -157,7 +157,7 @@ const Transactions = () => {
         category_id: formData.category_id || null,
         subcategory_id: formData.subcategory_id || null,
         observations: formData.observations || null,
-        tag_id: formData.tag_id || null,
+        tag_id: formData.tag_id && formData.tag_id !== "none" ? formData.tag_id : null,
         user_id: user.id,
       };
 
@@ -209,7 +209,7 @@ const Transactions = () => {
       category_id: transaction.category_id || "",
       subcategory_id: transaction.subcategory_id || "",
       observations: transaction.observations || "",
-      tag_id: transaction.tag_id || "",
+      tag_id: transaction.tag_id || "none",
     });
     setOpen(true);
   };
@@ -250,7 +250,7 @@ const Transactions = () => {
       category_id: "",
       subcategory_id: "",
       observations: "",
-      tag_id: "",
+      tag_id: "none",
     });
     setEditingId(null);
   };
