@@ -389,30 +389,66 @@ const Reports = () => {
               </div>
 
               <div>
-                <Label>Tags</Label>
-                <div className="flex flex-wrap gap-1 mt-1 min-h-[40px] p-2 border rounded-md">
-                  {tags.map((tag) => (
-                    <Badge
-                      key={tag.id}
-                      style={{
-                        backgroundColor: selectedTags.includes(tag.id) ? tag.color : 'transparent',
-                        color: selectedTags.includes(tag.id) ? '#fff' : tag.color,
-                        borderColor: tag.color,
-                        cursor: 'pointer'
-                      }}
-                      className="text-xs border"
-                      onClick={() => {
-                        setSelectedTags(prev =>
-                          prev.includes(tag.id)
-                            ? prev.filter(id => id !== tag.id)
-                            : [...prev, tag.id]
-                        );
-                      }}
-                    >
-                      {tag.name}
-                    </Badge>
-                  ))}
-                </div>
+                <Label htmlFor="tags-filter">Tags</Label>
+                <Select
+                  value={selectedTags.length > 0 ? selectedTags[0] : "all"}
+                  onValueChange={(value) => {
+                    if (value === "all") {
+                      setSelectedTags([]);
+                    } else {
+                      setSelectedTags(prev =>
+                        prev.includes(value)
+                          ? prev.filter(id => id !== value)
+                          : [...prev, value]
+                      );
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue>
+                      {selectedTags.length === 0 ? (
+                        "Todas as tags"
+                      ) : (
+                        <div className="flex gap-1 flex-wrap">
+                          {selectedTags.map(tagId => {
+                            const tag = tags.find(t => t.id === tagId);
+                            return tag ? (
+                              <Badge
+                                key={tag.id}
+                                style={{
+                                  backgroundColor: tag.color,
+                                  color: '#fff'
+                                }}
+                                className="text-xs"
+                              >
+                                {tag.name}
+                              </Badge>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as tags</SelectItem>
+                    {tags.map((tag) => (
+                      <SelectItem key={tag.id} value={tag.id}>
+                        <div className="flex items-center gap-2">
+                          {selectedTags.includes(tag.id) && <span>✓</span>}
+                          <Badge
+                            style={{
+                              backgroundColor: tag.color,
+                              color: '#fff'
+                            }}
+                            className="text-xs"
+                          >
+                            {tag.name}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex items-end">
@@ -426,8 +462,9 @@ const Reports = () => {
                     setSelectedCategory("all");
                     setSelectedTags([]);
                   }}
+                  title="Limpar Filtros"
                 >
-                  Limpar Filtros
+                  🗑️
                 </Button>
               </div>
             </div>
