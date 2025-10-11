@@ -59,6 +59,7 @@ const Transactions = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [formData, setFormData] = useState({
@@ -79,7 +80,7 @@ const Transactions = () => {
   useEffect(() => {
     checkAuth();
     fetchData();
-  }, [selectedAccount, selectedCategory, startDate, endDate]);
+  }, [selectedAccount, selectedCategory, selectedTags, startDate, endDate]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -127,7 +128,7 @@ const Transactions = () => {
       if (tagsRes.error) throw tagsRes.error;
 
       // Mapear tags para transações
-      const transactionsWithTags = (transactionsRes.data || []).map(transaction => {
+      let transactionsWithTags = (transactionsRes.data || []).map(transaction => {
         const transactionTags = (transactionTagsRes.data || [])
           .filter(tt => tt.transaction_id === transaction.id)
           .map(tt => (tagsRes.data || []).find(tag => tag.id === tt.tag_id))
@@ -138,6 +139,13 @@ const Transactions = () => {
           tags: transactionTags
         };
       });
+
+      // Filtrar por tags selecionadas
+      if (selectedTags.length > 0) {
+        transactionsWithTags = transactionsWithTags.filter(transaction =>
+          transaction.tags?.some(tag => selectedTags.includes(tag.id))
+        );
+      }
 
       setTransactions(transactionsWithTags);
       setAccounts(accountsRes.data || []);
@@ -375,7 +383,7 @@ const Transactions = () => {
         {/* Filtros */}
         <Card className="bg-gradient-card">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               <div>
                 <Label htmlFor="start-date">Data Início</Label>
                 <Input
@@ -430,6 +438,33 @@ const Transactions = () => {
                 </Select>
               </div>
 
+              <div>
+                <Label>Tags</Label>
+                <div className="flex flex-wrap gap-1 mt-1 min-h-[40px] p-2 border rounded-md">
+                  {tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      style={{
+                        backgroundColor: selectedTags.includes(tag.id) ? tag.color : 'transparent',
+                        color: selectedTags.includes(tag.id) ? '#fff' : tag.color,
+                        borderColor: tag.color,
+                        cursor: 'pointer'
+                      }}
+                      className="text-xs border"
+                      onClick={() => {
+                        setSelectedTags(prev =>
+                          prev.includes(tag.id)
+                            ? prev.filter(id => id !== tag.id)
+                            : [...prev, tag.id]
+                        );
+                      }}
+                    >
+                      {tag.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-end">
                 <Button
                   variant="outline"
@@ -439,6 +474,7 @@ const Transactions = () => {
                     setEndDate("");
                     setSelectedAccount("all");
                     setSelectedCategory("all");
+                    setSelectedTags([]);
                   }}
                 >
                   Limpar Filtros

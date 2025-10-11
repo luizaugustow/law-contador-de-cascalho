@@ -35,15 +35,42 @@ const Dashboard = () => {
 
   const fetchAccounts = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: accountsData, error: accountsError } = await supabase
         .from("accounts")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (accountsError) throw accountsError;
 
-      setAccounts(data || []);
-      const total = (data || []).reduce((sum, acc) => sum + Number(acc.balance), 0);
+      // Fetch all transactions to calculate current balance
+      const { data: transactionsData, error: transError } = await supabase
+        .from("transactions")
+        .select("account_id, amount, type, date")
+        .lte("date", new Date().toISOString().split('T')[0]);
+
+      if (transError) throw transError;
+
+      // Calculate current balance for each account
+      const accountBalances = new Map<string, number>();
+      (accountsData || []).forEach(acc => {
+        accountBalances.set(acc.id, Number(acc.balance));
+      });
+
+      // Apply transactions to calculate current balance
+      (transactionsData || []).forEach(t => {
+        const currentBalance = accountBalances.get(t.account_id) || 0;
+        const change = t.type === "receita" ? Number(t.amount) : -Number(t.amount);
+        accountBalances.set(t.account_id, currentBalance + change);
+      });
+
+      // Update accounts with current balances
+      const accountsWithCurrentBalance = (accountsData || []).map(acc => ({
+        ...acc,
+        balance: accountBalances.get(acc.id) || Number(acc.balance)
+      }));
+
+      setAccounts(accountsWithCurrentBalance);
+      const total = accountsWithCurrentBalance.reduce((sum, acc) => sum + Number(acc.balance), 0);
       setTotalBalance(total);
     } catch (error: any) {
       toast({

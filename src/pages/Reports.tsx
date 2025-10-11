@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 type MonthlyData = {
   month: string;
@@ -54,6 +55,8 @@ const Reports = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedAccount, setSelectedAccount] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [open, setOpen] = useState(false);
@@ -69,7 +72,7 @@ const Reports = () => {
   useEffect(() => {
     checkAuth();
     fetchData();
-  }, [selectedMonth, selectedAccount, selectedCategory, startDate, endDate]);
+  }, [selectedMonth, selectedAccount, selectedCategory, selectedTags, startDate, endDate]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -117,10 +120,35 @@ const Reports = () => {
 
       if (transError) throw transError;
 
+      // Fetch tags and transaction_tags
+      const { data: tagsData } = await supabase
+        .from("tags")
+        .select("id, name, color")
+        .eq("user_id", user.id);
+
+      setTags(tagsData || []);
+
+      const { data: transactionTagsData } = await supabase
+        .from("transaction_tags")
+        .select("transaction_id, tag_id");
+
+      // Filtrar transações por tags se houver seleção
+      let filteredTransactions = transactions || [];
+      if (selectedTags.length > 0) {
+        const transactionIdsWithSelectedTags = new Set(
+          (transactionTagsData || [])
+            .filter(tt => selectedTags.includes(tt.tag_id))
+            .map(tt => tt.transaction_id)
+        );
+        filteredTransactions = filteredTransactions.filter(t =>
+          transactionIdsWithSelectedTags.has(t.id)
+        );
+      }
+
       // Calculate monthly data
       const monthlyMap = new Map<string, { income: number; expense: number }>();
       
-      transactions?.forEach((t) => {
+      filteredTransactions.forEach((t) => {
         const month = t.date.slice(0, 7);
         if (!monthlyMap.has(month)) {
           monthlyMap.set(month, { income: 0, expense: 0 });
@@ -146,7 +174,7 @@ const Reports = () => {
 
       // Calculate daily balances per account (with initial balance)
       // Sort transactions chronologically
-      const sortedTransactions = transactions?.sort((a, b) => a.date.localeCompare(b.date)) || [];
+      const sortedTransactions = filteredTransactions.sort((a, b) => a.date.localeCompare(b.date));
 
       // Calculate running balance for each account on each day
       const accountBalances = new Map<string, number>();
@@ -180,13 +208,13 @@ const Reports = () => {
 
       setDailyBalances(dailyBalancesList);
 
-      // Fetch budgets
+      // Fetch budgets for the selected month
+      const monthStart = selectedMonth + "-01";
       const { data: budgetsData } = await supabase
         .from("budgets")
         .select("*")
         .eq("user_id", user.id)
-        .gte("month", selectedMonth + "-01")
-        .lt("month", getNextMonth(selectedMonth) + "-01");
+        .eq("month", monthStart);
 
       const { data: categoriesData } = await supabase
         .from("categories")
@@ -197,8 +225,8 @@ const Reports = () => {
 
       // Calculate spending per category for the selected month
       const categorySpending = new Map<string, number>();
-      transactions
-        ?.filter(t => t.date.startsWith(selectedMonth) && t.type === "despesa")
+      filteredTransactions
+        .filter(t => t.date.startsWith(selectedMonth) && t.type === "despesa")
         .forEach(t => {
           if (t.category_id) {
             const current = categorySpending.get(t.category_id) || 0;
@@ -305,7 +333,7 @@ const Reports = () => {
         {/* Filtros Globais */}
         <Card className="bg-gradient-card">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               <div>
                 <Label htmlFor="start-date">Data Início</Label>
                 <Input
@@ -360,6 +388,33 @@ const Reports = () => {
                 </Select>
               </div>
 
+              <div>
+                <Label>Tags</Label>
+                <div className="flex flex-wrap gap-1 mt-1 min-h-[40px] p-2 border rounded-md">
+                  {tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      style={{
+                        backgroundColor: selectedTags.includes(tag.id) ? tag.color : 'transparent',
+                        color: selectedTags.includes(tag.id) ? '#fff' : tag.color,
+                        borderColor: tag.color,
+                        cursor: 'pointer'
+                      }}
+                      className="text-xs border"
+                      onClick={() => {
+                        setSelectedTags(prev =>
+                          prev.includes(tag.id)
+                            ? prev.filter(id => id !== tag.id)
+                            : [...prev, tag.id]
+                        );
+                      }}
+                    >
+                      {tag.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-end">
                 <Button
                   variant="outline"
@@ -369,6 +424,7 @@ const Reports = () => {
                     setEndDate("");
                     setSelectedAccount("all");
                     setSelectedCategory("all");
+                    setSelectedTags([]);
                   }}
                 >
                   Limpar Filtros
