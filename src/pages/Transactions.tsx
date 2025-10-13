@@ -360,7 +360,7 @@ const Transactions = () => {
                 Nova Transação
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingId ? "Editar Transação" : "Nova Transação"}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Target, Calendar } from "lucide-react";
+import { TrendingUp, TrendingDown, Target, Calendar, Edit, Trash2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +33,7 @@ type Budget = {
   amount: number;
   spent: number;
   month: string;
+  type: string;
 };
 
 type Category = {
@@ -64,7 +65,9 @@ const Reports = () => {
     category_id: "",
     amount: "",
     month: new Date().toISOString().slice(0, 7),
+    type: "despesa" as "receita" | "despesa",
   });
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
 
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -223,26 +226,38 @@ const Reports = () => {
 
       setCategories(categoriesData || []);
 
-      // Calculate spending per category for the selected month
+      // Calculate spending and income per category for the selected month
       const categorySpending = new Map<string, number>();
+      const categoryIncome = new Map<string, number>();
+      
       filteredTransactions
-        .filter(t => t.date.startsWith(selectedMonth) && t.type === "despesa")
+        .filter(t => t.date.startsWith(selectedMonth))
         .forEach(t => {
           if (t.category_id) {
-            const current = categorySpending.get(t.category_id) || 0;
-            categorySpending.set(t.category_id, current + Number(t.amount));
+            if (t.type === "despesa") {
+              const current = categorySpending.get(t.category_id) || 0;
+              categorySpending.set(t.category_id, current + Number(t.amount));
+            } else if (t.type === "receita") {
+              const current = categoryIncome.get(t.category_id) || 0;
+              categoryIncome.set(t.category_id, current + Number(t.amount));
+            }
           }
         });
 
       const budgetsWithSpent = budgetsData?.map(b => {
         const category = categoriesData?.find(c => c.id === b.category_id);
+        const spent = b.type === "despesa" 
+          ? categorySpending.get(b.category_id) || 0
+          : categoryIncome.get(b.category_id) || 0;
+        
         return {
           id: b.id,
           category_id: b.category_id,
           category_name: category?.name || "N/A",
           amount: Number(b.amount),
-          spent: categorySpending.get(b.category_id) || 0,
+          spent,
           month: b.month,
+          type: b.type,
         };
       }) || [];
 
@@ -271,32 +286,79 @@ const Reports = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from("budgets").insert([
-        {
-          user_id: user.id,
-          category_id: formData.category_id,
-          amount: Number(formData.amount),
-          month: formData.month + "-01",
-        },
-      ]);
+      if (editingBudget) {
+        const { error } = await supabase
+          .from("budgets")
+          .update({
+            category_id: formData.category_id,
+            amount: Number(formData.amount),
+            month: formData.month + "-01",
+            type: formData.type,
+          })
+          .eq("id", editingBudget.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Orçamento criado",
-        description: "O orçamento foi criado com sucesso.",
-      });
+        toast({
+          title: "Orçamento atualizado",
+          description: "O orçamento foi atualizado com sucesso.",
+        });
+      } else {
+        const { error } = await supabase.from("budgets").insert([
+          {
+            user_id: user.id,
+            category_id: formData.category_id,
+            amount: Number(formData.amount),
+            month: formData.month + "-01",
+            type: formData.type,
+          },
+        ]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Orçamento criado",
+          description: "O orçamento foi criado com sucesso.",
+        });
+      }
 
       setOpen(false);
+      setEditingBudget(null);
       setFormData({
         category_id: "",
         amount: "",
         month: new Date().toISOString().slice(0, 7),
+        type: "despesa",
       });
       fetchData();
     } catch (error: any) {
       toast({
-        title: "Erro ao criar orçamento",
+        title: "Erro ao salvar orçamento",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteBudget = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este orçamento?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("budgets")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Orçamento excluído",
+        description: "O orçamento foi excluído com sucesso.",
+      });
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao excluir orçamento",
         description: error.message,
         variant: "destructive",
       });
@@ -572,7 +634,18 @@ const Reports = () => {
                   className="w-48"
                 />
               </div>
-              <Dialog open={open} onOpenChange={setOpen}>
+              <Dialog open={open} onOpenChange={(isOpen) => {
+                setOpen(isOpen);
+                if (!isOpen) {
+                  setEditingBudget(null);
+                  setFormData({
+                    category_id: "",
+                    amount: "",
+                    month: new Date().toISOString().slice(0, 7),
+                    type: "despesa",
+                  });
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button className="gap-2">
                     <Target className="h-4 w-4" />
@@ -581,9 +654,29 @@ const Reports = () => {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Novo Orçamento</DialogTitle>
+                    <DialogTitle>
+                      {editingBudget ? "Editar Orçamento" : "Novo Orçamento"}
+                    </DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleSubmitBudget} className="space-y-4">
+                    <div>
+                      <Label htmlFor="type">Tipo</Label>
+                      <Select
+                        value={formData.type}
+                        onValueChange={(value: "receita" | "despesa") =>
+                          setFormData({ ...formData, type: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="despesa">Despesa</SelectItem>
+                          <SelectItem value="receita">Receita</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div>
                       <Label htmlFor="category">Categoria</Label>
                       <Select
@@ -628,7 +721,7 @@ const Reports = () => {
 
                     <div className="flex gap-2">
                       <Button type="submit" className="flex-1">
-                        Criar
+                        {editingBudget ? "Atualizar" : "Criar"}
                       </Button>
                       <Button
                         type="button"
@@ -662,14 +755,47 @@ const Reports = () => {
                     <Card key={budget.id} className="bg-gradient-card hover:shadow-lg transition-all">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between">
-                          <span>{budget.category_name}</span>
-                          <Target className="h-5 w-5 text-primary" />
+                          <div className="flex items-center gap-2">
+                            <span>{budget.category_name}</span>
+                            <Badge variant={budget.type === "receita" ? "default" : "secondary"}>
+                              {budget.type === "receita" ? "Receita" : "Despesa"}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setEditingBudget(budget);
+                                setFormData({
+                                  category_id: budget.category_id,
+                                  amount: budget.amount.toString(),
+                                  month: budget.month.slice(0, 7),
+                                  type: budget.type as "receita" | "despesa",
+                                });
+                                setOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleDeleteBudget(budget.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex justify-between items-center">
                           <div>
-                            <p className="text-sm text-muted-foreground">Gasto</p>
+                            <p className="text-sm text-muted-foreground">
+                              {budget.type === "receita" ? "Recebido" : "Gasto"}
+                            </p>
                             <p className={`text-2xl font-bold ${isOverBudget ? "text-destructive" : "text-foreground"}`}>
                               {formatCurrency(budget.spent)}
                             </p>
@@ -697,7 +823,7 @@ const Reports = () => {
 
                         {isOverBudget && (
                           <p className="text-sm text-destructive font-medium">
-                            Você excedeu o orçamento em {formatCurrency(budget.spent - budget.amount)}
+                            Você {budget.type === "receita" ? "recebeu" : "excedeu o orçamento em"} {formatCurrency(Math.abs(budget.spent - budget.amount))}
                           </p>
                         )}
                       </CardContent>

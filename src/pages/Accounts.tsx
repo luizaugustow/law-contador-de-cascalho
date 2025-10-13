@@ -24,6 +24,7 @@ type Account = {
   name: string;
   type: string;
   balance: number;
+  initial_balance: number;
   institution: string | null;
 };
 
@@ -83,9 +84,10 @@ const Accounts = () => {
         accountBalances.set(t.account_id, currentBalance + change);
       });
 
-      // Update accounts with current balances
+      // Update accounts with current balances (keep initial_balance separate)
       const accountsWithCurrentBalance = (accountsData || []).map(acc => ({
         ...acc,
+        initial_balance: Number(acc.balance),
         balance: accountBalances.get(acc.id) || Number(acc.balance)
       }));
 
@@ -337,7 +339,7 @@ const Accounts = () => {
                           setFormData({
                             name: account.name,
                             type: account.type as "corrente" | "beneficio" | "investimento",
-                            balance: account.balance.toString(),
+                            balance: account.initial_balance.toString(),
                             institution: account.institution || "",
                           });
                           setDialogOpen(true);
