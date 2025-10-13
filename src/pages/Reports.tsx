@@ -30,10 +30,11 @@ type Budget = {
   id: string;
   category_id: string;
   category_name: string;
-  amount: number;
-  spent: number;
+  expense_amount: number;
+  income_amount: number;
+  expense_spent: number;
+  income_spent: number;
   month: string;
-  type: string;
 };
 
 type Category = {
@@ -63,9 +64,9 @@ const Reports = () => {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     category_id: "",
-    amount: "",
+    expense_amount: "",
+    income_amount: "",
     month: new Date().toISOString().slice(0, 7),
-    type: "despesa" as "receita" | "despesa",
   });
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
 
@@ -246,18 +247,18 @@ const Reports = () => {
 
       const budgetsWithSpent = budgetsData?.map(b => {
         const category = categoriesData?.find(c => c.id === b.category_id);
-        const spent = b.type === "despesa" 
-          ? categorySpending.get(b.category_id) || 0
-          : categoryIncome.get(b.category_id) || 0;
+        const expense_spent = categorySpending.get(b.category_id) || 0;
+        const income_spent = categoryIncome.get(b.category_id) || 0;
         
         return {
           id: b.id,
           category_id: b.category_id,
           category_name: category?.name || "N/A",
-          amount: Number(b.amount),
-          spent,
+          expense_amount: Number(b.expense_amount),
+          income_amount: Number(b.income_amount),
+          expense_spent,
+          income_spent,
           month: b.month,
-          type: b.type,
         };
       }) || [];
 
@@ -291,9 +292,9 @@ const Reports = () => {
           .from("budgets")
           .update({
             category_id: formData.category_id,
-            amount: Number(formData.amount),
+            expense_amount: Number(formData.expense_amount) || 0,
+            income_amount: Number(formData.income_amount) || 0,
             month: formData.month + "-01",
-            type: formData.type,
           })
           .eq("id", editingBudget.id);
 
@@ -308,9 +309,9 @@ const Reports = () => {
           {
             user_id: user.id,
             category_id: formData.category_id,
-            amount: Number(formData.amount),
+            expense_amount: Number(formData.expense_amount) || 0,
+            income_amount: Number(formData.income_amount) || 0,
             month: formData.month + "-01",
-            type: formData.type,
           },
         ]);
 
@@ -326,9 +327,9 @@ const Reports = () => {
       setEditingBudget(null);
       setFormData({
         category_id: "",
-        amount: "",
+        expense_amount: "",
+        income_amount: "",
         month: new Date().toISOString().slice(0, 7),
-        type: "despesa",
       });
       fetchData();
     } catch (error: any) {
@@ -640,9 +641,9 @@ const Reports = () => {
                   setEditingBudget(null);
                   setFormData({
                     category_id: "",
-                    amount: "",
+                    expense_amount: "",
+                    income_amount: "",
                     month: new Date().toISOString().slice(0, 7),
-                    type: "despesa",
                   });
                 }
               }}>
@@ -659,24 +660,6 @@ const Reports = () => {
                     </DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleSubmitBudget} className="space-y-4">
-                    <div>
-                      <Label htmlFor="type">Tipo</Label>
-                      <Select
-                        value={formData.type}
-                        onValueChange={(value: "receita" | "despesa") =>
-                          setFormData({ ...formData, type: value })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="despesa">Despesa</SelectItem>
-                          <SelectItem value="receita">Receita</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
                     <div>
                       <Label htmlFor="category">Categoria</Label>
                       <Select
@@ -697,18 +680,6 @@ const Reports = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor="amount">Valor do Orçamento</Label>
-                      <Input
-                        id="amount"
-                        type="number"
-                        step="0.01"
-                        value={formData.amount}
-                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div>
                       <Label htmlFor="budget-month">Mês</Label>
                       <Input
                         id="budget-month"
@@ -716,6 +687,30 @@ const Reports = () => {
                         value={formData.month}
                         onChange={(e) => setFormData({ ...formData, month: e.target.value })}
                         required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="expense-amount">Limite de Despesa (opcional)</Label>
+                      <Input
+                        id="expense-amount"
+                        type="number"
+                        step="0.01"
+                        value={formData.expense_amount}
+                        onChange={(e) => setFormData({ ...formData, expense_amount: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="income-amount">Meta de Receita (opcional)</Label>
+                      <Input
+                        id="income-amount"
+                        type="number"
+                        step="0.01"
+                        value={formData.income_amount}
+                        onChange={(e) => setFormData({ ...formData, income_amount: e.target.value })}
+                        placeholder="0.00"
                       />
                     </div>
 
@@ -748,19 +743,20 @@ const Reports = () => {
                 </Card>
               ) : (
                 budgets.map((budget) => {
-                  const percentage = (budget.spent / budget.amount) * 100;
-                  const isOverBudget = percentage > 100;
+                  const expensePercentage = budget.expense_amount > 0 
+                    ? (budget.expense_spent / budget.expense_amount) * 100 
+                    : 0;
+                  const incomePercentage = budget.income_amount > 0 
+                    ? (budget.income_spent / budget.income_amount) * 100 
+                    : 0;
+                  const isExpenseOverBudget = budget.expense_spent > budget.expense_amount;
+                  const isIncomeBelowTarget = budget.income_spent < budget.income_amount;
                   
                   return (
                     <Card key={budget.id} className="bg-gradient-card hover:shadow-lg transition-all">
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span>{budget.category_name}</span>
-                            <Badge variant={budget.type === "receita" ? "default" : "secondary"}>
-                              {budget.type === "receita" ? "Receita" : "Despesa"}
-                            </Badge>
-                          </div>
+                          <span>{budget.category_name}</span>
                           <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
@@ -770,9 +766,9 @@ const Reports = () => {
                                 setEditingBudget(budget);
                                 setFormData({
                                   category_id: budget.category_id,
-                                  amount: budget.amount.toString(),
+                                  expense_amount: budget.expense_amount.toString(),
+                                  income_amount: budget.income_amount.toString(),
                                   month: budget.month.slice(0, 7),
-                                  type: budget.type as "receita" | "despesa",
                                 });
                                 setOpen(true);
                               }}
@@ -791,40 +787,80 @@ const Reports = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-sm text-muted-foreground">
-                              {budget.type === "receita" ? "Recebido" : "Gasto"}
-                            </p>
-                            <p className={`text-2xl font-bold ${isOverBudget ? "text-destructive" : "text-foreground"}`}>
-                              {formatCurrency(budget.spent)}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Orçamento</p>
-                            <p className="text-2xl font-bold">{formatCurrency(budget.amount)}</p>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <div className="flex justify-between text-sm mb-2">
-                            <span className="text-muted-foreground">Progresso</span>
-                            <span className={`font-medium ${isOverBudget ? "text-destructive" : "text-foreground"}`}>
-                              {percentage.toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full transition-all ${isOverBudget ? "bg-destructive" : "bg-primary"}`}
-                              style={{ width: `${Math.min(percentage, 100)}%` }}
-                            />
-                          </div>
-                        </div>
+                        {budget.expense_amount > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-sm text-muted-foreground">Gasto</p>
+                                <p className={`text-xl font-bold ${isExpenseOverBudget ? "text-destructive" : "text-foreground"}`}>
+                                  {formatCurrency(budget.expense_spent)}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-muted-foreground">Limite</p>
+                                <p className="text-xl font-bold">{formatCurrency(budget.expense_amount)}</p>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span className="text-muted-foreground">Despesas</span>
+                                <span className={`font-medium ${isExpenseOverBudget ? "text-destructive" : "text-foreground"}`}>
+                                  {expensePercentage.toFixed(1)}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full transition-all ${isExpenseOverBudget ? "bg-destructive" : "bg-primary"}`}
+                                  style={{ width: `${Math.min(expensePercentage, 100)}%` }}
+                                />
+                              </div>
+                            </div>
 
-                        {isOverBudget && (
-                          <p className="text-sm text-destructive font-medium">
-                            Você {budget.type === "receita" ? "recebeu" : "excedeu o orçamento em"} {formatCurrency(Math.abs(budget.spent - budget.amount))}
-                          </p>
+                            {isExpenseOverBudget && (
+                              <p className="text-sm text-destructive font-medium">
+                                Você excedeu o orçamento em {formatCurrency(Math.abs(budget.expense_spent - budget.expense_amount))}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {budget.income_amount > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-sm text-muted-foreground">Recebido</p>
+                                <p className={`text-xl font-bold ${isIncomeBelowTarget ? "text-yellow-500" : "text-success"}`}>
+                                  {formatCurrency(budget.income_spent)}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-muted-foreground">Meta</p>
+                                <p className="text-xl font-bold">{formatCurrency(budget.income_amount)}</p>
+                              </div>
+                            </div>
+                            
+                            <div>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span className="text-muted-foreground">Receitas</span>
+                                <span className={`font-medium ${isIncomeBelowTarget ? "text-yellow-500" : "text-success"}`}>
+                                  {incomePercentage.toFixed(1)}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full transition-all ${isIncomeBelowTarget ? "bg-yellow-500" : "bg-success"}`}
+                                  style={{ width: `${Math.min(incomePercentage, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {isIncomeBelowTarget && (
+                              <p className="text-sm text-yellow-500 font-medium">
+                                Faltam {formatCurrency(Math.abs(budget.income_amount - budget.income_spent))} para atingir a meta
+                              </p>
+                            )}
+                          </div>
                         )}
                       </CardContent>
                     </Card>
