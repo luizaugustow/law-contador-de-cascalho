@@ -45,7 +45,7 @@ const Dashboard = () => {
       // Fetch all transactions to calculate current balance
       const { data: transactionsData, error: transError } = await supabase
         .from("transactions")
-        .select("account_id, amount, type, date")
+        .select("account_id, amount, type, date, destination_account_id")
         .lte("date", new Date().toISOString().split('T')[0]);
 
       if (transError) throw transError;
@@ -58,9 +58,20 @@ const Dashboard = () => {
 
       // Apply transactions to calculate current balance
       (transactionsData || []).forEach(t => {
-        const currentBalance = accountBalances.get(t.account_id) || 0;
-        const change = t.type === "receita" ? Number(t.amount) : -Number(t.amount);
-        accountBalances.set(t.account_id, currentBalance + change);
+        if (t.type === "transferencia") {
+          // Transferências: debita origem e credita destino
+          const originBalance = accountBalances.get(t.account_id) || 0;
+          accountBalances.set(t.account_id, originBalance - Number(t.amount));
+          
+          if (t.destination_account_id) {
+            const destBalance = accountBalances.get(t.destination_account_id) || 0;
+            accountBalances.set(t.destination_account_id, destBalance + Number(t.amount));
+          }
+        } else {
+          const currentBalance = accountBalances.get(t.account_id) || 0;
+          const change = t.type === "receita" ? Number(t.amount) : -Number(t.amount);
+          accountBalances.set(t.account_id, currentBalance + change);
+        }
       });
 
       // Update accounts with current balances

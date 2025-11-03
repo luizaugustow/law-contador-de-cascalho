@@ -210,6 +210,7 @@ export type Database = {
           created_at: string
           date: string
           description: string
+          destination_account_id: string | null
           id: string
           observations: string | null
           subcategory_id: string | null
@@ -224,6 +225,7 @@ export type Database = {
           created_at?: string
           date?: string
           description: string
+          destination_account_id?: string | null
           id?: string
           observations?: string | null
           subcategory_id?: string | null
@@ -238,6 +240,7 @@ export type Database = {
           created_at?: string
           date?: string
           description?: string
+          destination_account_id?: string | null
           id?: string
           observations?: string | null
           subcategory_id?: string | null
@@ -258,6 +261,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_destination_account_id_fkey"
+            columns: ["destination_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
           {

@@ -38,6 +38,7 @@ type FormData = {
   subcategory_id: string;
   observations: string;
   tag_ids: string[];
+  destination_account_id: string;
 };
 
 type TransactionFormProps = {
@@ -97,6 +98,7 @@ const TransactionForm = ({
           <SelectContent>
             <SelectItem value="receita">Receita</SelectItem>
             <SelectItem value="despesa">Despesa</SelectItem>
+            <SelectItem value="transferencia">Transferência</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -113,7 +115,9 @@ const TransactionForm = ({
       </div>
 
       <div>
-        <Label htmlFor="account">Conta</Label>
+        <Label htmlFor="account">
+          {formData.type === "transferencia" ? "Conta de Origem" : "Conta"}
+        </Label>
         <Select
           value={formData.account_id}
           onValueChange={(value) => setFormData({ ...formData, account_id: value })}
@@ -131,28 +135,53 @@ const TransactionForm = ({
         </Select>
       </div>
 
-      <div>
-        <Label htmlFor="category">Categoria</Label>
-        <Select
-          value={formData.category_id}
-          onValueChange={(value) =>
-            setFormData({ ...formData, category_id: value, subcategory_id: "" })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione uma categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            {categories.map((category) => (
-              <SelectItem key={category.id} value={category.id}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {formData.type === "transferencia" && (
+        <div>
+          <Label htmlFor="destination_account">Conta de Destino</Label>
+          <Select
+            value={formData.destination_account_id}
+            onValueChange={(value) => setFormData({ ...formData, destination_account_id: value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione a conta de destino" />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts
+                .filter(account => account.id !== formData.account_id)
+                .map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
-      {filteredSubcategories.length > 0 && (
+      {formData.type !== "transferencia" && (
+        <div>
+          <Label htmlFor="category">Categoria</Label>
+          <Select
+            value={formData.category_id}
+            onValueChange={(value) =>
+              setFormData({ ...formData, category_id: value, subcategory_id: "" })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione uma categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {formData.type !== "transferencia" && filteredSubcategories.length > 0 && (
         <div>
           <Label htmlFor="subcategory">Subcategoria</Label>
           <Select

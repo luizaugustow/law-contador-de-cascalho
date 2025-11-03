@@ -23,6 +23,7 @@ type Transaction = {
   category_id: string | null;
   subcategory_id: string | null;
   observations: string | null;
+  destination_account_id: string | null;
   tags?: Tag[];
 };
 
@@ -72,6 +73,7 @@ const Transactions = () => {
     subcategory_id: "",
     observations: "",
     tag_ids: [] as string[],
+    destination_account_id: "",
   });
 
   const navigate = useNavigate();
@@ -179,6 +181,7 @@ const Transactions = () => {
         category_id: formData.category_id || null,
         subcategory_id: formData.subcategory_id || null,
         observations: formData.observations || null,
+        destination_account_id: formData.destination_account_id || null,
         user_id: user.id,
       };
 
@@ -266,6 +269,7 @@ const Transactions = () => {
       subcategory_id: transaction.subcategory_id || "",
       observations: transaction.observations || "",
       tag_ids: transaction.tags?.map(t => t.id) || [],
+      destination_account_id: transaction.destination_account_id || "",
     });
     setOpen(true);
   };
@@ -307,6 +311,7 @@ const Transactions = () => {
       subcategory_id: "",
       observations: "",
       tag_ids: [],
+      destination_account_id: "",
     });
     setEditingId(null);
   };
@@ -539,6 +544,11 @@ const Transactions = () => {
                     <div className="flex items-center gap-4">
                       {transaction.type === "receita" ? (
                         <ArrowUpCircle className="h-8 w-8 text-success" />
+                      ) : transaction.type === "transferencia" ? (
+                        <div className="flex items-center">
+                          <ArrowDownCircle className="h-6 w-6 text-primary" />
+                          <ArrowUpCircle className="h-6 w-6 text-primary -ml-2" />
+                        </div>
                       ) : (
                         <ArrowDownCircle className="h-8 w-8 text-destructive" />
                       )}
@@ -565,9 +575,17 @@ const Transactions = () => {
                         <div className="flex gap-4 text-sm text-muted-foreground mt-1">
                           <span>{new Date(transaction.date).toLocaleDateString("pt-BR")}</span>
                           <span>•</span>
-                          <span>{getAccountName(transaction.account_id)}</span>
-                          <span>•</span>
-                          <span>{getCategoryName(transaction.category_id)}</span>
+                          {transaction.type === "transferencia" ? (
+                            <>
+                              <span>{getAccountName(transaction.account_id)} → {getAccountName(transaction.destination_account_id || "")}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>{getAccountName(transaction.account_id)}</span>
+                              <span>•</span>
+                              <span>{getCategoryName(transaction.category_id)}</span>
+                            </>
+                          )}
                         </div>
                         {transaction.observations && (
                           <p className="text-sm text-muted-foreground mt-2 italic">
@@ -577,8 +595,13 @@ const Transactions = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className={`text-2xl font-bold ${transaction.type === "receita" ? "text-success" : "text-destructive"}`}>
-                        {transaction.type === "receita" ? "+" : "-"}{formatCurrency(transaction.amount)}
+                      <span className={`text-2xl font-bold ${
+                        transaction.type === "receita" ? "text-success" : 
+                        transaction.type === "transferencia" ? "text-primary" : 
+                        "text-destructive"
+                      }`}>
+                        {transaction.type === "receita" ? "+" : transaction.type === "transferencia" ? "" : "-"}
+                        {formatCurrency(transaction.amount)}
                       </span>
                       <div className="flex gap-2">
                         <Button

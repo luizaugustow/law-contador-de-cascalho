@@ -152,6 +152,9 @@ const Reports = () => {
       const monthlyMap = new Map<string, { income: number; expense: number }>();
       
       filteredTransactions.forEach((t) => {
+        // Transferências não contam como receita ou despesa nos relatórios
+        if (t.type === "transferencia") return;
+        
         const month = t.date.slice(0, 7);
         if (!monthlyMap.has(month)) {
           monthlyMap.set(month, { income: 0, expense: 0 });
@@ -159,7 +162,7 @@ const Reports = () => {
         const data = monthlyMap.get(month)!;
         if (t.type === "receita") {
           data.income += Number(t.amount);
-        } else {
+        } else if (t.type === "despesa") {
           data.expense += Number(t.amount);
         }
       });
@@ -190,19 +193,50 @@ const Reports = () => {
 
       // Process transactions chronologically (they modify the running balance)
       sortedTransactions.forEach((t) => {
-        const currentBalance = accountBalances.get(t.account_id) || 0;
-        const change = t.type === "receita" ? Number(t.amount) : -Number(t.amount);
-        const newBalance = currentBalance + change;
-        accountBalances.set(t.account_id, newBalance);
+        if (t.type === "transferencia") {
+          // Transferências: debita origem e credita destino
+          const originBalance = accountBalances.get(t.account_id) || 0;
+          accountBalances.set(t.account_id, originBalance - Number(t.amount));
+          
+          if (t.destination_account_id) {
+            const destBalance = accountBalances.get(t.destination_account_id) || 0;
+            accountBalances.set(t.destination_account_id, destBalance + Number(t.amount));
+            
+            // Store balance for destination account
+            const destAccount = accountsData?.find(a => a.id === t.destination_account_id);
+            if (destAccount) {
+              dailyBalancesList.push({
+                date: t.date,
+                account_name: destAccount.name,
+                balance: destBalance + Number(t.amount),
+              });
+            }
+          }
+          
+          // Store balance for origin account
+          const account = accountsData?.find(a => a.id === t.account_id);
+          if (account) {
+            dailyBalancesList.push({
+              date: t.date,
+              account_name: account.name,
+              balance: originBalance - Number(t.amount),
+            });
+          }
+        } else {
+          const currentBalance = accountBalances.get(t.account_id) || 0;
+          const change = t.type === "receita" ? Number(t.amount) : -Number(t.amount);
+          const newBalance = currentBalance + change;
+          accountBalances.set(t.account_id, newBalance);
 
-        // Store end-of-day balance for this account on this date
-        const account = accountsData?.find(a => a.id === t.account_id);
-        if (account) {
-          dailyBalancesList.push({
-            date: t.date,
-            account_name: account.name,
-            balance: newBalance,
-          });
+          // Store end-of-day balance for this account on this date
+          const account = accountsData?.find(a => a.id === t.account_id);
+          if (account) {
+            dailyBalancesList.push({
+              date: t.date,
+              account_name: account.name,
+              balance: newBalance,
+            });
+          }
         }
       });
 
@@ -230,7 +264,7 @@ const Reports = () => {
       const categoryBalances = new Map<string, number>();
       
       filteredTransactions
-        .filter(t => t.date.startsWith(selectedMonth))
+        .filter(t => t.date.startsWith(selectedMonth) && t.type !== "transferencia")
         .forEach(t => {
           if (t.category_id) {
             const current = categoryBalances.get(t.category_id) || 0;
