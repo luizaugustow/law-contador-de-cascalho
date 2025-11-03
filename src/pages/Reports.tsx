@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 type MonthlyData = {
   month: string;
@@ -43,6 +44,7 @@ type Category = {
 type Account = {
   id: string;
   name: string;
+  balance: number;
 };
 
 const Reports = () => {
@@ -528,6 +530,7 @@ const Reports = () => {
             <TabsTrigger value="monthly">Saldo Mensal</TabsTrigger>
             <TabsTrigger value="daily">Conciliação Bancária</TabsTrigger>
             <TabsTrigger value="budgets">Orçamentos</TabsTrigger>
+            <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
           </TabsList>
 
           <TabsContent value="monthly" className="space-y-4">
@@ -808,6 +811,252 @@ const Reports = () => {
                   );
                 })
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="dashboards" className="space-y-6">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card className="bg-gradient-card">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Saldo Total</p>
+                      <p className="text-2xl font-bold">
+                        {formatCurrency(
+                          accounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0)
+                        )}
+                      </p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-success" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-card">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Receitas do Mês</p>
+                      <p className="text-2xl font-bold text-success">
+                        {formatCurrency(
+                          monthlyData.find(m => m.month === selectedMonth)?.income || 0
+                        )}
+                      </p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-success" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-card">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Despesas do Mês</p>
+                      <p className="text-2xl font-bold text-destructive">
+                        {formatCurrency(
+                          monthlyData.find(m => m.month === selectedMonth)?.expense || 0
+                        )}
+                      </p>
+                    </div>
+                    <TrendingDown className="h-8 w-8 text-destructive" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-card">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Taxa de Poupança</p>
+                      <p className="text-2xl font-bold">
+                        {(() => {
+                          const currentMonth = monthlyData.find(m => m.month === selectedMonth);
+                          const savingsRate = currentMonth?.income 
+                            ? ((currentMonth.income - currentMonth.expense) / currentMonth.income) * 100
+                            : 0;
+                          return `${savingsRate.toFixed(1)}%`;
+                        })()}
+                      </p>
+                    </div>
+                    <Target className="h-8 w-8 text-primary" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Charts Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Evolução Patrimonial */}
+              <Card className="bg-gradient-card">
+                <CardHeader>
+                  <CardTitle>Evolução do Saldo</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={monthlyData.slice().reverse()}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="month" 
+                        tickFormatter={(value) => {
+                          const date = new Date(value + "-01");
+                          return date.toLocaleDateString("pt-BR", { month: "short" });
+                        }}
+                        className="text-xs"
+                      />
+                      <YAxis 
+                        tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                        className="text-xs"
+                      />
+                      <Tooltip 
+                        formatter={(value: number) => formatCurrency(value)}
+                        labelFormatter={(label) => {
+                          const date = new Date(label + "-01");
+                          return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+                        }}
+                      />
+                      <Legend />
+                      <Line 
+                        type="monotone" 
+                        dataKey="balance" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2}
+                        name="Saldo"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Receitas vs Despesas */}
+              <Card className="bg-gradient-card">
+                <CardHeader>
+                  <CardTitle>Receitas vs Despesas</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={monthlyData.slice().reverse()}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="month"
+                        tickFormatter={(value) => {
+                          const date = new Date(value + "-01");
+                          return date.toLocaleDateString("pt-BR", { month: "short" });
+                        }}
+                        className="text-xs"
+                      />
+                      <YAxis 
+                        tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                        className="text-xs"
+                      />
+                      <Tooltip 
+                        formatter={(value: number) => formatCurrency(value)}
+                        labelFormatter={(label) => {
+                          const date = new Date(label + "-01");
+                          return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="income" fill="hsl(var(--success))" name="Receitas" />
+                      <Bar dataKey="expense" fill="hsl(var(--destructive))" name="Despesas" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Distribuição por Categoria */}
+              <Card className="bg-gradient-card">
+                <CardHeader>
+                  <CardTitle>Despesas por Categoria</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={(() => {
+                          const categoryExpenses = new Map<string, number>();
+                          
+                          // Calcular despesas por categoria do mês selecionado
+                          budgets.forEach(b => {
+                            const expense = Math.abs(Math.min(b.balance, 0));
+                            if (expense > 0) {
+                              categoryExpenses.set(b.category_name, expense);
+                            }
+                          });
+
+                          const chartData = Array.from(categoryExpenses.entries())
+                            .map(([name, value]) => ({ name, value }))
+                            .sort((a, b) => b.value - a.value)
+                            .slice(0, 6);
+
+                          return chartData.length > 0 ? chartData : [{ name: "Sem dados", value: 0 }];
+                        })()}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="hsl(var(--primary))"
+                        dataKey="value"
+                      >
+                        {budgets.map((_, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={`hsl(${(index * 360) / Math.max(budgets.length, 1)}, 70%, 50%)`} 
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Comparativo Trimestral */}
+              <Card className="bg-gradient-card">
+                <CardHeader>
+                  <CardTitle>Tendência Mensal</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {monthlyData.slice(0, 6).map((data, index) => {
+                      const previousMonth = monthlyData[index + 1];
+                      const change = previousMonth 
+                        ? ((data.balance - previousMonth.balance) / Math.abs(previousMonth.balance || 1)) * 100
+                        : 0;
+                      
+                      return (
+                        <div key={data.month} className="flex items-center justify-between p-3 border rounded-lg border-border/50">
+                          <div className="flex-1">
+                            <p className="font-medium">
+                              {new Date(data.month + "-01").toLocaleDateString("pt-BR", { 
+                                month: "long", 
+                                year: "numeric" 
+                              })}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Saldo: {formatCurrency(data.balance)}
+                            </p>
+                          </div>
+                          {previousMonth && (
+                            <div className={`flex items-center gap-1 ${change >= 0 ? "text-success" : "text-destructive"}`}>
+                              {change >= 0 ? (
+                                <TrendingUp className="h-4 w-4" />
+                              ) : (
+                                <TrendingDown className="h-4 w-4" />
+                              )}
+                              <span className="text-sm font-medium">
+                                {Math.abs(change).toFixed(1)}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
         </Tabs>
