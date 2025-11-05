@@ -564,7 +564,7 @@ const Reports = () => {
             <TabsTrigger value="monthly">Saldo Mensal</TabsTrigger>
             <TabsTrigger value="daily">Conciliação Bancária</TabsTrigger>
             <TabsTrigger value="budgets">Orçamentos</TabsTrigger>
-            <TabsTrigger value="dashboards">Visão Geral</TabsTrigger>
+            <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
           </TabsList>
 
           <TabsContent value="monthly" className="space-y-4">

@@ -24,7 +24,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   };
 
   const navItems = [
-    { path: "/", icon: Home, label: "Dashboard" },
+    { path: "/", icon: Home, label: "Visão Geral" },
     { path: "/categorias", icon: Tag, label: "Categorias e Tags" },
     { path: "/contas", icon: Wallet, label: "Contas" },
     { path: "/transacoes", icon: ArrowUpCircle, label: "Transações" },
