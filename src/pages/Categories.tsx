@@ -393,124 +393,126 @@ const Categories = () => {
           </Dialog>
         </div>
 
-        {categories.length === 0 ? (
-          <Card className="bg-gradient-card">
-            <CardContent className="py-12 text-center">
-              <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                Nenhuma categoria cadastrada ainda.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {categories.map((category) => (
-              <Card key={category.id} className="bg-gradient-card shadow-md hover:shadow-lg transition-all">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: category.color }}
-                      />
-                      <span>{category.name}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setEditingCategory(category);
-                          setFormData({
-                            name: category.name,
-                            color: category.color,
-                          });
-                          setDialogOpen(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(category.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <p className="text-sm font-medium">Subcategorias</p>
-                      <Dialog open={subDialogOpen && selectedCategory === category.id} onOpenChange={(open) => {
-                        setSubDialogOpen(open);
-                        if (open) setSelectedCategory(category.id);
-                      }}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" className="gap-2">
-                            <Plus className="h-3 w-3" />
-                            Adicionar
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Nova Subcategoria</DialogTitle>
-                            <DialogDescription>
-                              Adicionar subcategoria para {category.name}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <form onSubmit={handleSubSubmit}>
-                            <div className="space-y-4">
-                              <div>
-                                <Label htmlFor="subname">Nome</Label>
-                                <Input
-                                  id="subname"
-                                  value={subFormData.name}
-                                  onChange={(e) => setSubFormData({ name: e.target.value })}
-                                  placeholder="Ex: Supermercado"
-                                  required
-                                />
-                              </div>
-                            </div>
-                            <DialogFooter className="mt-6">
-                              <Button type="submit">Salvar</Button>
-                            </DialogFooter>
-                          </form>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                    {category.subcategories && category.subcategories.length > 0 ? (
-                      <div className="space-y-2">
-                        {category.subcategories.map((sub) => (
-                          <div
-                            key={sub.id}
-                            className="flex items-center justify-between p-2 bg-secondary rounded-lg"
-                          >
-                            <span className="text-sm">{sub.name}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => handleDeleteSub(sub.id)}
-                            >
-                              <Trash2 className="h-3 w-3 text-destructive" />
-                            </Button>
-                          </div>
-                        ))}
+        <Card className="bg-gradient-card">
+          <CardHeader>
+            <CardTitle>Categorias</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {categories.length === 0 ? (
+              <div className="py-8 text-center">
+                <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">
+                  Nenhuma categoria cadastrada ainda.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {categories.map((category) => (
+                  <div key={category.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: category.color }}
+                        />
+                        <span className="font-semibold">{category.name}</span>
                       </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Nenhuma subcategoria
-                      </p>
-                    )}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setEditingCategory(category);
+                            setFormData({
+                              name: category.name,
+                              color: category.color,
+                            });
+                            setDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(category.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="ml-7">
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="text-sm font-medium text-muted-foreground">Subcategorias</p>
+                        <Dialog open={subDialogOpen && selectedCategory === category.id} onOpenChange={(open) => {
+                          setSubDialogOpen(open);
+                          if (open) setSelectedCategory(category.id);
+                        }}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="gap-2 h-7">
+                              <Plus className="h-3 w-3" />
+                              Adicionar
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Nova Subcategoria</DialogTitle>
+                              <DialogDescription>
+                                Adicionar subcategoria para {category.name}
+                              </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleSubSubmit}>
+                              <div className="space-y-4">
+                                <div>
+                                  <Label htmlFor="subname">Nome</Label>
+                                  <Input
+                                    id="subname"
+                                    value={subFormData.name}
+                                    onChange={(e) => setSubFormData({ name: e.target.value })}
+                                    placeholder="Ex: Supermercado"
+                                    required
+                                  />
+                                </div>
+                              </div>
+                              <DialogFooter className="mt-6">
+                                <Button type="submit">Salvar</Button>
+                              </DialogFooter>
+                            </form>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                      {category.subcategories && category.subcategories.length > 0 ? (
+                        <div className="space-y-1">
+                          {category.subcategories.map((sub) => (
+                            <div
+                              key={sub.id}
+                              className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm"
+                            >
+                              <span>{sub.name}</span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => handleDeleteSub(sub.id)}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Nenhuma subcategoria
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Seção de Tags */}
         <div className="mt-8">
@@ -577,22 +579,26 @@ const Categories = () => {
             </Dialog>
           </div>
 
-          {tags.length === 0 ? (
-            <Card className="bg-gradient-card">
-              <CardContent className="py-12 text-center">
-                <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  Nenhuma tag cadastrada ainda.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {tags.map((tag) => (
-                <Card key={tag.id} className="bg-gradient-card shadow-sm hover:shadow-md transition-all">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+          <Card className="bg-gradient-card">
+            <CardHeader>
+              <CardTitle>Tags</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {tags.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">
+                    Nenhuma tag cadastrada ainda.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {tags.map((tag) => (
+                    <div
+                      key={tag.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
                         <div
                           className="w-4 h-4 rounded-full"
                           style={{ backgroundColor: tag.color }}
@@ -618,11 +624,11 @@ const Categories = () => {
                         </Button>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </Layout>
