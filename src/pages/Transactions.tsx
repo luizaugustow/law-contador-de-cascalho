@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import TransactionForm from "@/components/TransactionForm";
+import TransactionImport from "@/components/TransactionImport";
 
 type Transaction = {
   id: string;
@@ -480,16 +481,23 @@ const Transactions = () => {
             </p>
           </div>
           
-          <Dialog open={open} onOpenChange={(isOpen) => {
-            setOpen(isOpen);
-            if (!isOpen) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Nova Transação
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <TransactionImport
+              accounts={accounts}
+              categories={categories}
+              onImportComplete={fetchData}
+            />
+            
+            <Dialog open={open} onOpenChange={(isOpen) => {
+              setOpen(isOpen);
+              if (!isOpen) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Nova Transação
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -507,7 +515,8 @@ const Transactions = () => {
                 onSubmit={handleSubmit}
               />
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         {/* Filtros */}
