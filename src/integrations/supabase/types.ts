@@ -214,6 +214,7 @@ export type Database = {
           id: string
           observations: string | null
           subcategory_id: string | null
+          transfer_pair_id: string | null
           type: string
           updated_at: string
           user_id: string
@@ -229,6 +230,7 @@ export type Database = {
           id?: string
           observations?: string | null
           subcategory_id?: string | null
+          transfer_pair_id?: string | null
           type: string
           updated_at?: string
           user_id: string
@@ -244,6 +246,7 @@ export type Database = {
           id?: string
           observations?: string | null
           subcategory_id?: string | null
+          transfer_pair_id?: string | null
           type?: string
           updated_at?: string
           user_id?: string
@@ -275,6 +278,13 @@ export type Database = {
             columns: ["subcategory_id"]
             isOneToOne: false
             referencedRelation: "subcategories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_transfer_pair_id_fkey"
+            columns: ["transfer_pair_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]

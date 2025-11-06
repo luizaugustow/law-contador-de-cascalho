@@ -172,26 +172,55 @@ const Transactions = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const transactionData = {
-        description: formData.description,
-        amount: Number(formData.amount),
-        type: formData.type,
-        date: formData.date,
-        account_id: formData.account_id,
-        category_id: formData.category_id || null,
-        subcategory_id: formData.subcategory_id || null,
-        observations: formData.observations || null,
-        destination_account_id: formData.destination_account_id || null,
-        user_id: user.id,
-      };
-
       if (editingId) {
+        // Atualizar transação existente
+        const transactionData = {
+          description: formData.description,
+          amount: Number(formData.amount),
+          type: formData.type,
+          date: formData.date,
+          account_id: formData.account_id,
+          category_id: formData.category_id || null,
+          subcategory_id: formData.subcategory_id || null,
+          observations: formData.observations || null,
+          destination_account_id: formData.destination_account_id || null,
+          user_id: user.id,
+        };
+
+        // Verificar se é uma transferência para atualizar a transação par
+        const { data: currentTransaction } = await supabase
+          .from("transactions")
+          .select("type, transfer_pair_id")
+          .eq("id", editingId)
+          .single();
+
         const { error } = await supabase
           .from("transactions")
           .update(transactionData)
           .eq("id", editingId);
         
         if (error) throw error;
+
+        // Se for transferência, atualizar a transação par
+        if (formData.type === "transferencia" && currentTransaction?.transfer_pair_id) {
+          const pairData = {
+            description: formData.description,
+            amount: Number(formData.amount),
+            type: "transferencia",
+            date: formData.date,
+            account_id: formData.destination_account_id,
+            category_id: null,
+            subcategory_id: null,
+            observations: formData.observations || null,
+            destination_account_id: formData.account_id,
+            user_id: user.id,
+          };
+
+          await supabase
+            .from("transactions")
+            .update(pairData)
+            .eq("id", currentTransaction.transfer_pair_id);
+        }
 
         // Deletar tags antigas e inserir novas
         await supabase
@@ -217,26 +246,114 @@ const Transactions = () => {
           description: "A transação foi atualizada com sucesso.",
         });
       } else {
-        const { data: newTransaction, error } = await supabase
-          .from("transactions")
-          .insert([transactionData])
-          .select()
-          .single();
-        
-        if (error) throw error;
+        // Criar nova transação
+        if (formData.type === "transferencia") {
+          // Criar transação de saída (débito)
+          const debitData = {
+            description: formData.description,
+            amount: Number(formData.amount),
+            type: "transferencia",
+            date: formData.date,
+            account_id: formData.account_id,
+            category_id: null,
+            subcategory_id: null,
+            observations: formData.observations || null,
+            destination_account_id: formData.destination_account_id,
+            user_id: user.id,
+          };
 
-        // Inserir tags
-        if (formData.tag_ids.length > 0 && newTransaction) {
-          const tagRecords = formData.tag_ids.map(tag_id => ({
-            transaction_id: newTransaction.id,
-            tag_id
-          }));
+          const { data: debitTransaction, error: debitError } = await supabase
+            .from("transactions")
+            .insert([debitData])
+            .select()
+            .single();
           
-          const { error: tagError } = await supabase
-            .from("transaction_tags")
-            .insert(tagRecords);
+          if (debitError) throw debitError;
+
+          // Criar transação de entrada (crédito)
+          const creditData = {
+            description: formData.description,
+            amount: Number(formData.amount),
+            type: "transferencia",
+            date: formData.date,
+            account_id: formData.destination_account_id,
+            category_id: null,
+            subcategory_id: null,
+            observations: formData.observations || null,
+            destination_account_id: formData.account_id,
+            user_id: user.id,
+            transfer_pair_id: debitTransaction.id,
+          };
+
+          const { data: creditTransaction, error: creditError } = await supabase
+            .from("transactions")
+            .insert([creditData])
+            .select()
+            .single();
           
-          if (tagError) throw tagError;
+          if (creditError) throw creditError;
+
+          // Atualizar a transação de débito com o ID da transação de crédito
+          await supabase
+            .from("transactions")
+            .update({ transfer_pair_id: creditTransaction.id })
+            .eq("id", debitTransaction.id);
+
+          // Inserir tags em ambas as transações
+          if (formData.tag_ids.length > 0) {
+            const tagRecords = [
+              ...formData.tag_ids.map(tag_id => ({
+                transaction_id: debitTransaction.id,
+                tag_id
+              })),
+              ...formData.tag_ids.map(tag_id => ({
+                transaction_id: creditTransaction.id,
+                tag_id
+              }))
+            ];
+            
+            const { error: tagError } = await supabase
+              .from("transaction_tags")
+              .insert(tagRecords);
+            
+            if (tagError) throw tagError;
+          }
+        } else {
+          // Criar transação normal (receita ou despesa)
+          const transactionData = {
+            description: formData.description,
+            amount: Number(formData.amount),
+            type: formData.type,
+            date: formData.date,
+            account_id: formData.account_id,
+            category_id: formData.category_id || null,
+            subcategory_id: formData.subcategory_id || null,
+            observations: formData.observations || null,
+            destination_account_id: null,
+            user_id: user.id,
+          };
+
+          const { data: newTransaction, error } = await supabase
+            .from("transactions")
+            .insert([transactionData])
+            .select()
+            .single();
+          
+          if (error) throw error;
+
+          // Inserir tags
+          if (formData.tag_ids.length > 0 && newTransaction) {
+            const tagRecords = formData.tag_ids.map(tag_id => ({
+              transaction_id: newTransaction.id,
+              tag_id
+            }));
+            
+            const { error: tagError } = await supabase
+              .from("transaction_tags")
+              .insert(tagRecords);
+            
+            if (tagError) throw tagError;
+          }
         }
         
         toast({
@@ -278,6 +395,14 @@ const Transactions = () => {
     if (!confirm("Tem certeza que deseja excluir esta transação?")) return;
 
     try {
+      // Verificar se é uma transferência para deletar ambas as transações
+      const { data: transaction } = await supabase
+        .from("transactions")
+        .select("transfer_pair_id")
+        .eq("id", id)
+        .single();
+
+      // Deletar a transação (o CASCADE vai deletar a transação par automaticamente)
       const { error } = await supabase
         .from("transactions")
         .delete()
@@ -577,7 +702,7 @@ const Transactions = () => {
                           <span>•</span>
                           {transaction.type === "transferencia" ? (
                             <>
-                              <span>{getAccountName(transaction.account_id)} → {getAccountName(transaction.destination_account_id || "")}</span>
+                              <span>De: {getAccountName(transaction.account_id)} → Para: {getAccountName(transaction.destination_account_id || "")}</span>
                             </>
                           ) : (
                             <>
