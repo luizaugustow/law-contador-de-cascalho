@@ -36,6 +36,7 @@ type Account = {
 type Category = {
   id: string;
   name: string;
+  emoji?: string;
 };
 
 type Subcategory = {
@@ -117,10 +118,10 @@ const Transactions = () => {
 
       const [transactionsRes, accountsRes, categoriesRes, subcategoriesRes, tagsRes, transactionTagsRes] = await Promise.all([
         transQuery,
-        supabase.from("accounts").select("id, name"),
-        supabase.from("categories").select("id, name"),
-        supabase.from("subcategories").select("id, name, category_id"),
-        supabase.from("tags").select("id, name, color"),
+        supabase.from("accounts").select("id, name").order("name", { ascending: true }),
+        supabase.from("categories").select("id, name, emoji").order("name", { ascending: true }),
+        supabase.from("subcategories").select("id, name, category_id").order("name", { ascending: true }),
+        supabase.from("tags").select("id, name, color").order("name", { ascending: true }),
         supabase.from("transaction_tags").select("transaction_id, tag_id"),
       ]);
 
@@ -458,6 +459,11 @@ const Transactions = () => {
     return categories.find(c => c.id === id)?.name || "N/A";
   };
 
+  const getCategoryEmoji = (id: string | null) => {
+    if (!id) return "";
+    return categories.find(c => c.id === id)?.emoji || "";
+  };
+
   const filteredSubcategories = subcategories.filter(s => s.category_id === formData.category_id);
 
   if (loading) {
@@ -717,7 +723,12 @@ const Transactions = () => {
                             <>
                               <span>{getAccountName(transaction.account_id)}</span>
                               <span className="hidden sm:inline">•</span>
-                              <span>{getCategoryName(transaction.category_id)}</span>
+                              <span className="flex items-center gap-1">
+                                {getCategoryEmoji(transaction.category_id) && (
+                                  <span className="text-base">{getCategoryEmoji(transaction.category_id)}</span>
+                                )}
+                                {getCategoryName(transaction.category_id)}
+                              </span>
                             </>
                           )}
                         </div>

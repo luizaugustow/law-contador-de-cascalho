@@ -14,6 +14,7 @@ type Account = {
 type Category = {
   id: string;
   name: string;
+  emoji?: string;
 };
 
 type Subcategory = {
@@ -173,7 +174,10 @@ const TransactionForm = ({
             <SelectContent>
               {categories.map((category) => (
                 <SelectItem key={category.id} value={category.id}>
-                  {category.name}
+                  <div className="flex items-center gap-2">
+                    {category.emoji && <span className="text-base">{category.emoji}</span>}
+                    <span>{category.name}</span>
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>

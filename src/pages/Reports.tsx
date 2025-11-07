@@ -39,6 +39,7 @@ type Budget = {
 type Category = {
   id: string;
   name: string;
+  emoji?: string;
 };
 
 type Account = {
@@ -93,7 +94,8 @@ const Reports = () => {
       const { data: accountsData } = await supabase
         .from("accounts")
         .select("id, name, balance")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .order("name", { ascending: true });
 
       setAccounts(accountsData || []);
 
@@ -255,8 +257,9 @@ const Reports = () => {
 
       const { data: categoriesData } = await supabase
         .from("categories")
-        .select("id, name")
-        .eq("user_id", user.id);
+        .select("id, name, emoji")
+        .eq("user_id", user.id)
+        .order("name", { ascending: true });
 
       setCategories(categoriesData || []);
 

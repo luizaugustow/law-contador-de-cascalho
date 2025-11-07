@@ -15,12 +15,14 @@ import { z } from "zod";
 const categorySchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
   color: z.string().regex(/^#[0-9A-F]{6}$/i, "Cor inválida"),
+  emoji: z.string().min(1, "Emoji é obrigatório"),
 });
 
 type Category = {
   id: string;
   name: string;
   color: string;
+  emoji: string;
   subcategories?: Subcategory[];
 };
 
@@ -46,7 +48,7 @@ const Categories = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [formData, setFormData] = useState({ name: "", color: "#3B82F6" });
+  const [formData, setFormData] = useState({ name: "", color: "#3B82F6", emoji: "📁" });
   const [subFormData, setSubFormData] = useState({ name: "" });
   const [tagFormData, setTagFormData] = useState({ name: "", color: "#3B82F6" });
   const navigate = useNavigate();
@@ -70,19 +72,21 @@ const Categories = () => {
       const { data: categoriesData, error: catError } = await supabase
         .from("categories")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("name", { ascending: true });
 
       if (catError) throw catError;
 
       const { data: subcategoriesData, error: subError } = await supabase
         .from("subcategories")
-        .select("*");
+        .select("*")
+        .order("name", { ascending: true });
 
       if (subError) throw subError;
 
       const categoriesWithSubs = (categoriesData || []).map((cat) => ({
         ...cat,
-        subcategories: (subcategoriesData || []).filter((sub) => sub.category_id === cat.id),
+        subcategories: (subcategoriesData || []).filter((sub) => sub.category_id === cat.id)
+          .sort((a, b) => a.name.localeCompare(b.name)),
       }));
 
       setCategories(categoriesWithSubs);
@@ -102,7 +106,7 @@ const Categories = () => {
       const { data, error } = await supabase
         .from("tags")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("name", { ascending: true });
 
       if (error) throw error;
       setTags(data || []);
@@ -145,7 +149,7 @@ const Categories = () => {
 
       setDialogOpen(false);
       setEditingCategory(null);
-      setFormData({ name: "", color: "#3B82F6" });
+      setFormData({ name: "", color: "#3B82F6", emoji: "📁" });
       fetchCategories();
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -367,6 +371,21 @@ const Categories = () => {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="emoji">Emoji</Label>
+                    <Input
+                      id="emoji"
+                      value={formData.emoji}
+                      onChange={(e) => setFormData({ ...formData, emoji: e.target.value })}
+                      placeholder="📁"
+                      required
+                      maxLength={10}
+                      className="text-2xl"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Cole um emoji para representar esta categoria
+                    </p>
+                  </div>
+                  <div>
                     <Label htmlFor="color">Cor</Label>
                     <div className="flex gap-2">
                       <Input
@@ -411,10 +430,7 @@ const Categories = () => {
                   <div key={category.id} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-4 h-4 rounded-full"
-                          style={{ backgroundColor: category.color }}
-                        />
+                        <span className="text-2xl">{category.emoji}</span>
                         <span className="font-semibold">{category.name}</span>
                       </div>
                       <div className="flex gap-2">
@@ -426,6 +442,7 @@ const Categories = () => {
                             setFormData({
                               name: category.name,
                               color: category.color,
+                              emoji: category.emoji || "📁",
                             });
                             setDialogOpen(true);
                           }}
