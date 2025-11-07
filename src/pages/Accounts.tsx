@@ -229,10 +229,10 @@ const Accounts = () => {
   return (
     <Layout>
       <div className="space-y-6 animate-fade-in">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Contas</h2>
-            <p className="text-muted-foreground mt-1">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Contas</h2>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Gerencie suas contas bancárias e investimentos
             </p>
           </div>
@@ -324,7 +324,7 @@ const Accounts = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {accounts.map((account) => (
               <Card key={account.id} className="bg-gradient-card shadow-md hover:shadow-lg transition-all hover-scale">
                 <CardHeader>

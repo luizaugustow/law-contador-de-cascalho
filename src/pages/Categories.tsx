@@ -330,10 +330,10 @@ const Categories = () => {
   return (
     <Layout>
       <div className="space-y-6 animate-fade-in">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Categorias e Tags</h2>
-            <p className="text-muted-foreground mt-1">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Categorias e Tags</h2>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Gerencie suas categorias, subcategorias e tags
             </p>
           </div>

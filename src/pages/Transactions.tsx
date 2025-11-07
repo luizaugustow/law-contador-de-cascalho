@@ -473,15 +473,15 @@ const Transactions = () => {
   return (
     <Layout>
       <div className="space-y-8 animate-fade-in">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Transações</h2>
-            <p className="text-muted-foreground mt-1">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Transações</h2>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               Gerencie suas receitas e despesas
             </p>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <TransactionImport
               accounts={accounts}
               categories={categories}
@@ -493,9 +493,9 @@ const Transactions = () => {
               if (!isOpen) resetForm();
             }}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
+                <Button className="gap-2 flex-1 sm:flex-initial">
                   <Plus className="h-4 w-4" />
-                  Nova Transação
+                  <span className="sm:inline">Nova Transação</span>
                 </Button>
               </DialogTrigger>
             <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
@@ -522,7 +522,7 @@ const Transactions = () => {
         {/* Filtros */}
         <Card className="bg-gradient-card">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               <div>
                 <Label htmlFor="start-date">Data Início</Label>
                 <Input
@@ -674,21 +674,21 @@ const Transactions = () => {
             transactions.map((transaction) => (
               <Card key={transaction.id} className="bg-gradient-card hover:shadow-lg transition-all">
                 <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
                       {transaction.type === "receita" ? (
-                        <ArrowUpCircle className="h-8 w-8 text-success" />
+                        <ArrowUpCircle className="h-8 w-8 text-success flex-shrink-0" />
                       ) : transaction.type === "transferencia" ? (
-                        <div className="flex items-center">
+                        <div className="flex items-center flex-shrink-0">
                           <ArrowDownCircle className="h-6 w-6 text-primary" />
                           <ArrowUpCircle className="h-6 w-6 text-primary -ml-2" />
                         </div>
                       ) : (
-                        <ArrowDownCircle className="h-8 w-8 text-destructive" />
+                        <ArrowDownCircle className="h-8 w-8 text-destructive flex-shrink-0" />
                       )}
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-lg">{transaction.description}</h3>
+                          <h3 className="font-semibold text-base sm:text-lg break-words">{transaction.description}</h3>
                           {transaction.tags && transaction.tags.length > 0 && (
                             <div className="flex gap-1 flex-wrap">
                               {transaction.tags.map(tag => (
@@ -706,17 +706,17 @@ const Transactions = () => {
                             </div>
                           )}
                         </div>
-                        <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                        <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
                           <span>{new Date(transaction.date).toLocaleDateString("pt-BR")}</span>
-                          <span>•</span>
+                          <span className="hidden sm:inline">•</span>
                           {transaction.type === "transferencia" ? (
                             <>
-                              <span>De: {getAccountName(transaction.account_id)} → Para: {getAccountName(transaction.destination_account_id || "")}</span>
+                              <span className="break-all">De: {getAccountName(transaction.account_id)} → Para: {getAccountName(transaction.destination_account_id || "")}</span>
                             </>
                           ) : (
                             <>
                               <span>{getAccountName(transaction.account_id)}</span>
-                              <span>•</span>
+                              <span className="hidden sm:inline">•</span>
                               <span>{getCategoryName(transaction.category_id)}</span>
                             </>
                           )}
@@ -728,8 +728,8 @@ const Transactions = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className={`text-2xl font-bold ${
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+                      <span className={`text-xl sm:text-2xl font-bold ${
                         transaction.type === "receita" ? "text-success" : 
                         transaction.type === "transferencia" ? "text-primary" : 
                         "text-destructive"

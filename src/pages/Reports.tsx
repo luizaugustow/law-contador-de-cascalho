@@ -412,8 +412,8 @@ const Reports = () => {
     <Layout>
       <div className="space-y-8 animate-fade-in">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Relatórios</h2>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Relatórios</h2>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Visualize saldos mensais, acumulados e conciliação bancária
           </p>
         </div>
@@ -421,7 +421,7 @@ const Reports = () => {
         {/* Filtros Globais */}
         <Card className="bg-gradient-card">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               <div>
                 <Label htmlFor="start-date">Data Início</Label>
                 <Input

@@ -124,13 +124,13 @@ const Dashboard = () => {
     <Layout>
       <div className="space-y-8 animate-fade-in">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-          <p className="text-muted-foreground mt-1">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Visão geral do seu controle financeiro
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="bg-gradient-card shadow-md hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Saldo Total</CardTitle>
@@ -199,7 +199,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {accounts.map((account) => (
                 <Card key={account.id} className="bg-gradient-card shadow-md hover:shadow-lg transition-all hover-scale">
                   <CardHeader>
