@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MultiSelect, Option } from "@/components/ui/multi-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -42,6 +43,12 @@ type Category = {
   emoji?: string;
 };
 
+type Subcategory = {
+  id: string;
+  name: string;
+  category_id: string;
+};
+
 type Account = {
   id: string;
   name: string;
@@ -53,11 +60,13 @@ const Reports = () => {
   const [dailyBalances, setDailyBalances] = useState<DailyBalance[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
-  const [selectedAccount, setSelectedAccount] = useState<string>("all");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>([]);
   const [startDate, setStartDate] = useState<string>("");
@@ -76,7 +85,7 @@ const Reports = () => {
   useEffect(() => {
     checkAuth();
     fetchData();
-  }, [selectedMonth, selectedAccount, selectedCategory, selectedTags, startDate, endDate]);
+  }, [selectedMonth, selectedAccounts, selectedCategories, selectedSubcategories, selectedTags, startDate, endDate]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -105,12 +114,16 @@ const Reports = () => {
         .select("*")
         .eq("user_id", user.id);
       
-      if (selectedAccount !== "all") {
-        transQuery = transQuery.eq("account_id", selectedAccount);
+      if (selectedAccounts.length > 0) {
+        transQuery = transQuery.in("account_id", selectedAccounts);
       }
       
-      if (selectedCategory !== "all") {
-        transQuery = transQuery.eq("category_id", selectedCategory);
+      if (selectedCategories.length > 0) {
+        transQuery = transQuery.in("category_id", selectedCategories);
+      }
+
+      if (selectedSubcategories.length > 0) {
+        transQuery = transQuery.in("subcategory_id", selectedSubcategories);
       }
 
       if (startDate) {
@@ -262,6 +275,14 @@ const Reports = () => {
         .order("name", { ascending: true });
 
       setCategories(categoriesData || []);
+
+      const { data: subcategoriesData } = await supabase
+        .from("subcategories")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("name", { ascending: true });
+
+      setSubcategories(subcategoriesData || []);
 
       // Calculate balance per category for the selected month (income - expenses)
       const categoryBalances = new Map<string, number>();
@@ -424,7 +445,7 @@ const Reports = () => {
         {/* Filtros Globais */}
         <Card className="bg-gradient-card">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
               <div>
                 <Label htmlFor="start-date">Data Início</Label>
                 <Input
@@ -447,99 +468,44 @@ const Reports = () => {
 
               <div>
                 <Label htmlFor="account-filter">Conta</Label>
-                <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as contas</SelectItem>
-                    {accounts.map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  options={accounts.map(acc => ({ label: acc.name, value: acc.id }))}
+                  selected={selectedAccounts}
+                  onChange={setSelectedAccounts}
+                  placeholder="Todas as contas"
+                />
               </div>
 
               <div>
                 <Label htmlFor="category-filter">Categoria</Label>
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as categorias</SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  options={categories.map(cat => ({ label: cat.name, value: cat.id, emoji: cat.emoji }))}
+                  selected={selectedCategories}
+                  onChange={setSelectedCategories}
+                  placeholder="Todas as categorias"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="subcategory-filter">Subcategoria</Label>
+                <MultiSelect
+                  options={subcategories
+                    .filter(sub => selectedCategories.length === 0 || selectedCategories.includes(sub.category_id))
+                    .map(sub => ({ label: sub.name, value: sub.id }))}
+                  selected={selectedSubcategories}
+                  onChange={setSelectedSubcategories}
+                  placeholder="Todas as subcategorias"
+                />
               </div>
 
               <div>
                 <Label htmlFor="tags-filter">Tags</Label>
-                <Select
-                  value={selectedTags.length > 0 ? selectedTags[0] : "all"}
-                  onValueChange={(value) => {
-                    if (value === "all") {
-                      setSelectedTags([]);
-                    } else {
-                      setSelectedTags(prev =>
-                        prev.includes(value)
-                          ? prev.filter(id => id !== value)
-                          : [...prev, value]
-                      );
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue>
-                      {selectedTags.length === 0 ? (
-                        "Todas as tags"
-                      ) : (
-                        <div className="flex gap-1 flex-wrap">
-                          {selectedTags.map(tagId => {
-                            const tag = tags.find(t => t.id === tagId);
-                            return tag ? (
-                              <Badge
-                                key={tag.id}
-                                style={{
-                                  backgroundColor: tag.color,
-                                  color: '#fff'
-                                }}
-                                className="text-xs"
-                              >
-                                {tag.name}
-                              </Badge>
-                            ) : null;
-                          })}
-                        </div>
-                      )}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as tags</SelectItem>
-                    {tags.map((tag) => (
-                      <SelectItem key={tag.id} value={tag.id}>
-                        <div className="flex items-center gap-2">
-                          {selectedTags.includes(tag.id) && <span>✓</span>}
-                          <Badge
-                            style={{
-                              backgroundColor: tag.color,
-                              color: '#fff'
-                            }}
-                            className="text-xs"
-                          >
-                            {tag.name}
-                          </Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <MultiSelect
+                  options={tags.map(tag => ({ label: tag.name, value: tag.id }))}
+                  selected={selectedTags}
+                  onChange={setSelectedTags}
+                  placeholder="Todas as tags"
+                />
               </div>
 
               <div className="flex items-end">
@@ -549,8 +515,9 @@ const Reports = () => {
                   onClick={() => {
                     setStartDate("");
                     setEndDate("");
-                    setSelectedAccount("all");
-                    setSelectedCategory("all");
+                    setSelectedAccounts([]);
+                    setSelectedCategories([]);
+                    setSelectedSubcategories([]);
                     setSelectedTags([]);
                   }}
                   title="Limpar Filtros"
