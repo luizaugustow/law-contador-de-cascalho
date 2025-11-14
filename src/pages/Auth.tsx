@@ -127,7 +127,7 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto w-24 h-24 rounded-2xl overflow-hidden">
+          <div className="mx-auto w-full max-w-xs h-64 rounded-2xl overflow-hidden">
             <img src={loginLogo} alt="Logo" className="w-full h-full object-cover" />
           </div>
           <div>
