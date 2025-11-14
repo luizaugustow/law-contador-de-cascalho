@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wallet } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { z } from "zod";
+import loginLogo from "@/assets/login-logo.png";
 
 
 const emailSchema = z.string().email("Email inválido");
@@ -126,8 +127,8 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto w-16 h-16 bg-gradient-primary rounded-2xl flex items-center justify-center">
-            <Wallet className="h-8 w-8 text-primary-foreground" />
+          <div className="mx-auto w-24 h-24 rounded-2xl overflow-hidden">
+            <img src={loginLogo} alt="Logo" className="w-full h-full object-cover" />
           </div>
           <div>
             <CardTitle className="text-2xl">Controle Financeiro</CardTitle>
