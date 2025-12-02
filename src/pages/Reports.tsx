@@ -206,9 +206,15 @@ const Reports = () => {
         accountBalances.set(acc.id, Number(acc.balance));
       });
 
+      // Track processed transfers to avoid double-counting
+      const processedTransfers = new Set<string>();
+
       // Process transactions chronologically (they modify the running balance)
       sortedTransactions.forEach((t) => {
         if (t.type === "transferencia") {
+          // Skip if we already processed this transfer pair
+          if (processedTransfers.has(t.id)) return;
+
           // Transferências: debita origem e credita destino
           const originBalance = accountBalances.get(t.account_id) || 0;
           accountBalances.set(t.account_id, originBalance - Number(t.amount));
@@ -236,6 +242,12 @@ const Reports = () => {
               account_name: account.name,
               balance: originBalance - Number(t.amount),
             });
+          }
+
+          // Mark this transfer and its pair as processed
+          processedTransfers.add(t.id);
+          if (t.transfer_pair_id) {
+            processedTransfers.add(t.transfer_pair_id);
           }
         } else {
           const currentBalance = accountBalances.get(t.account_id) || 0;
