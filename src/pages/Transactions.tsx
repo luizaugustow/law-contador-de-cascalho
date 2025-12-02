@@ -26,6 +26,7 @@ type Transaction = {
   subcategory_id: string | null;
   observations: string | null;
   destination_account_id: string | null;
+  transfer_pair_id: string | null;
   tags?: Tag[];
 };
 
@@ -99,7 +100,7 @@ const Transactions = () => {
     try {
       let transQuery = supabase
         .from("transactions")
-        .select("*")
+        .select("*, transfer_pair_id")
         .order("date", { ascending: false });
 
       if (selectedAccounts.length > 0) {
@@ -148,6 +149,21 @@ const Transactions = () => {
           ...transaction,
           tags: transactionTags
         };
+      });
+
+      // Filtrar transferências duplicadas (mostrar apenas um lado)
+      const processedTransfers = new Set<string>();
+      transactionsWithTags = transactionsWithTags.filter(transaction => {
+        if (transaction.type === "transferencia" && transaction.transfer_pair_id) {
+          // Se já processamos este par de transferência, pular
+          if (processedTransfers.has(transaction.id)) {
+            return false;
+          }
+          // Marcar este par como processado
+          processedTransfers.add(transaction.id);
+          processedTransfers.add(transaction.transfer_pair_id);
+        }
+        return true;
       });
 
       // Filtrar por tags selecionadas
