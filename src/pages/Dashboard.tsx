@@ -45,7 +45,7 @@ const Dashboard = () => {
       // Fetch all transactions to calculate current balance
       const { data: transactionsData, error: transError } = await supabase
         .from("transactions")
-        .select("account_id, amount, type, date, destination_account_id")
+        .select("id, account_id, amount, type, date, destination_account_id, transfer_pair_id")
         .lte("date", new Date().toISOString().split('T')[0]);
 
       if (transError) throw transError;
@@ -56,9 +56,15 @@ const Dashboard = () => {
         accountBalances.set(acc.id, Number(acc.balance));
       });
 
+      // Track processed transfers to avoid double-counting
+      const processedTransfers = new Set<string>();
+
       // Apply transactions to calculate current balance
       (transactionsData || []).forEach(t => {
         if (t.type === "transferencia") {
+          // Skip if we already processed this transfer pair
+          if (processedTransfers.has(t.id)) return;
+          
           // Transferências: debita origem e credita destino
           const originBalance = accountBalances.get(t.account_id) || 0;
           accountBalances.set(t.account_id, originBalance - Number(t.amount));
@@ -66,6 +72,12 @@ const Dashboard = () => {
           if (t.destination_account_id) {
             const destBalance = accountBalances.get(t.destination_account_id) || 0;
             accountBalances.set(t.destination_account_id, destBalance + Number(t.amount));
+          }
+
+          // Mark this transfer and its pair as processed
+          processedTransfers.add(t.id);
+          if (t.transfer_pair_id) {
+            processedTransfers.add(t.transfer_pair_id);
           }
         } else {
           const currentBalance = accountBalances.get(t.account_id) || 0;
