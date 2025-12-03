@@ -209,11 +209,30 @@ const Reports = () => {
       // Track processed transfers to avoid double-counting
       const processedTransfers = new Set<string>();
 
+      // Criar um mapa de transações para encontrar pares
+      const transactionMap = new Map<string, typeof sortedTransactions[0]>();
+      sortedTransactions.forEach(t => {
+        transactionMap.set(t.id, t);
+      });
+
       // Process transactions chronologically (they modify the running balance)
       sortedTransactions.forEach((t) => {
         if (t.type === "transferencia") {
           // Skip if we already processed this transfer pair
           if (processedTransfers.has(t.id)) return;
+
+          // Para transferências com par, processar apenas a transação criada primeiro (débito original)
+          if (t.transfer_pair_id) {
+            const pairTransaction = transactionMap.get(t.transfer_pair_id);
+            if (pairTransaction) {
+              const thisCreatedAt = new Date(t.created_at).getTime();
+              const pairCreatedAt = new Date(pairTransaction.created_at).getTime();
+              if (thisCreatedAt > pairCreatedAt) {
+                processedTransfers.add(t.id);
+                return;
+              }
+            }
+          }
 
           // Transferências: debita origem e credita destino
           const originBalance = accountBalances.get(t.account_id) || 0;
