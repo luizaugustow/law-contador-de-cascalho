@@ -151,7 +151,7 @@ const Transactions = () => {
         };
       });
 
-      // Filtrar transferências duplicadas (mostrar apenas um lado)
+      // Filtrar transferências duplicadas (mostrar apenas o lado primário - o débito original)
       const processedTransfers = new Set<string>();
       transactionsWithTags = transactionsWithTags.filter(transaction => {
         if (transaction.type === "transferencia" && transaction.transfer_pair_id) {
@@ -159,6 +159,13 @@ const Transactions = () => {
           if (processedTransfers.has(transaction.id)) {
             return false;
           }
+          
+          // Mostrar apenas a transação primária (ID menor = criada primeiro = lado do débito)
+          if (transaction.id > transaction.transfer_pair_id) {
+            processedTransfers.add(transaction.id);
+            return false;
+          }
+          
           // Marcar este par como processado
           processedTransfers.add(transaction.id);
           processedTransfers.add(transaction.transfer_pair_id);
