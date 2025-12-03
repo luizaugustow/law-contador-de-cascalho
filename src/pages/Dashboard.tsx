@@ -65,7 +65,18 @@ const Dashboard = () => {
           // Skip if we already processed this transfer pair
           if (processedTransfers.has(t.id)) return;
           
-          // Transferências: debita origem e credita destino
+          // Para transferências com par, só processar a transação "primária"
+          // A transação primária é aquela onde o ID é menor que o transfer_pair_id
+          // (foi criada primeiro, portanto é o lado do débito original)
+          if (t.transfer_pair_id) {
+            // Se este ID é maior que o par, pular - vamos processar o outro lado
+            if (t.id > t.transfer_pair_id) {
+              processedTransfers.add(t.id);
+              return;
+            }
+          }
+          
+          // Transferências: debita conta origem (account_id) e credita destino (destination_account_id)
           const originBalance = accountBalances.get(t.account_id) || 0;
           accountBalances.set(t.account_id, originBalance - Number(t.amount));
           
