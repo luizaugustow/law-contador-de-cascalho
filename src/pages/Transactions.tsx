@@ -27,6 +27,7 @@ type Transaction = {
   observations: string | null;
   destination_account_id: string | null;
   transfer_pair_id: string | null;
+  created_at: string;
   tags?: Tag[];
 };
 
@@ -100,7 +101,7 @@ const Transactions = () => {
     try {
       let transQuery = supabase
         .from("transactions")
-        .select("*, transfer_pair_id")
+        .select("*, transfer_pair_id, created_at")
         .order("date", { ascending: false });
 
       if (selectedAccounts.length > 0) {
@@ -152,6 +153,12 @@ const Transactions = () => {
       });
 
       // Filtrar transferências duplicadas (mostrar apenas o lado primário - o débito original)
+      // Criar mapa para encontrar pares
+      const transactionMap = new Map<string, typeof transactionsWithTags[0]>();
+      transactionsWithTags.forEach(t => {
+        transactionMap.set(t.id, t);
+      });
+
       const processedTransfers = new Set<string>();
       transactionsWithTags = transactionsWithTags.filter(transaction => {
         if (transaction.type === "transferencia" && transaction.transfer_pair_id) {
@@ -160,10 +167,17 @@ const Transactions = () => {
             return false;
           }
           
-          // Mostrar apenas a transação primária (ID menor = criada primeiro = lado do débito)
-          if (transaction.id > transaction.transfer_pair_id) {
-            processedTransfers.add(transaction.id);
-            return false;
+          // Encontrar a transação par e comparar created_at
+          const pairTransaction = transactionMap.get(transaction.transfer_pair_id);
+          if (pairTransaction) {
+            const thisCreatedAt = new Date(transaction.created_at).getTime();
+            const pairCreatedAt = new Date(pairTransaction.created_at).getTime();
+            
+            // Se esta transação foi criada DEPOIS, pular - mostrar a outra
+            if (thisCreatedAt > pairCreatedAt) {
+              processedTransfers.add(transaction.id);
+              return false;
+            }
           }
           
           // Marcar este par como processado

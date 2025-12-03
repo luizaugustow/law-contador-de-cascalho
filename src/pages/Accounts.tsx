@@ -66,7 +66,7 @@ const Accounts = () => {
       // Fetch all transactions to calculate current balance
       const { data: transactionsData, error: transError } = await supabase
         .from("transactions")
-        .select("id, account_id, amount, type, date, destination_account_id, transfer_pair_id")
+        .select("id, account_id, amount, type, date, destination_account_id, transfer_pair_id, created_at")
         .lte("date", new Date().toISOString().split('T')[0]);
 
       if (transError) throw transError;
@@ -80,11 +80,33 @@ const Accounts = () => {
       // Track processed transfers to avoid double-counting
       const processedTransfers = new Set<string>();
 
+      // Criar um mapa de transações para encontrar pares
+      const transactionMap = new Map<string, typeof transactionsData[0]>();
+      (transactionsData || []).forEach(t => {
+        transactionMap.set(t.id, t);
+      });
+
       // Apply transactions to calculate current balance
       (transactionsData || []).forEach(t => {
         if (t.type === "transferencia") {
           // Skip if we already processed this transfer pair
           if (processedTransfers.has(t.id)) return;
+
+          // Para transferências com par, processar apenas a transação criada primeiro (débito original)
+          if (t.transfer_pair_id) {
+            const pairTransaction = transactionMap.get(t.transfer_pair_id);
+            if (pairTransaction) {
+              // Comparar created_at - a transação criada primeiro é o débito original
+              const thisCreatedAt = new Date(t.created_at).getTime();
+              const pairCreatedAt = new Date(pairTransaction.created_at).getTime();
+              
+              // Se esta transação foi criada DEPOIS, pular - vamos processar a outra
+              if (thisCreatedAt > pairCreatedAt) {
+                processedTransfers.add(t.id);
+                return;
+              }
+            }
+          }
 
           // Transferências: debita origem e credita destino
           const originBalance = accountBalances.get(t.account_id) || 0;
