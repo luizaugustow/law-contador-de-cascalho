@@ -105,7 +105,9 @@ const Transactions = () => {
         .order("date", { ascending: false });
 
       if (selectedAccounts.length > 0) {
-        transQuery = transQuery.in("account_id", selectedAccounts);
+        transQuery = transQuery.or(
+          `account_id.in.(${selectedAccounts.join(',')}),destination_account_id.in.(${selectedAccounts.join(',')})`
+        );
       }
 
       if (selectedCategories.length > 0) {
@@ -160,27 +162,57 @@ const Transactions = () => {
       });
 
       const processedTransfers = new Set<string>();
+
       transactionsWithTags = transactionsWithTags.filter(transaction => {
         if (transaction.type === "transferencia" && transaction.transfer_pair_id) {
-          // Se já processamos este par de transferência, pular
+          // Se já processamos este par, pular
           if (processedTransfers.has(transaction.id)) {
             return false;
           }
           
-          // Encontrar a transação par e comparar created_at
           const pairTransaction = transactionMap.get(transaction.transfer_pair_id);
-          if (pairTransaction) {
+          
+          // Se tem filtro de contas, mostrar a transação relevante para as contas selecionadas
+          if (selectedAccounts.length > 0 && pairTransaction) {
+            const thisAccountInFilter = selectedAccounts.includes(transaction.account_id);
+            const pairAccountInFilter = selectedAccounts.includes(pairTransaction.account_id);
+            
+            // Se ambas as contas estão no filtro, mostrar a mais antiga (débito)
+            if (thisAccountInFilter && pairAccountInFilter) {
+              const thisCreatedAt = new Date(transaction.created_at).getTime();
+              const pairCreatedAt = new Date(pairTransaction.created_at).getTime();
+              
+              if (thisCreatedAt > pairCreatedAt) {
+                processedTransfers.add(transaction.id);
+                processedTransfers.add(transaction.transfer_pair_id);
+                return false;
+              }
+            }
+            // Se apenas a conta par está no filtro, mostrar a par
+            else if (!thisAccountInFilter && pairAccountInFilter) {
+              processedTransfers.add(transaction.id);
+              processedTransfers.add(transaction.transfer_pair_id);
+              return false;
+            }
+            // Se apenas esta conta está no filtro, mostrar esta
+            else if (thisAccountInFilter && !pairAccountInFilter) {
+              processedTransfers.add(transaction.id);
+              processedTransfers.add(transaction.transfer_pair_id);
+              return true;
+            }
+          }
+          // Sem filtro de contas: mostrar sempre a mais antiga (débito original)
+          else if (pairTransaction) {
             const thisCreatedAt = new Date(transaction.created_at).getTime();
             const pairCreatedAt = new Date(pairTransaction.created_at).getTime();
             
-            // Se esta transação foi criada DEPOIS, pular - mostrar a outra
             if (thisCreatedAt > pairCreatedAt) {
               processedTransfers.add(transaction.id);
+              processedTransfers.add(transaction.transfer_pair_id);
               return false;
             }
           }
           
-          // Marcar este par como processado
           processedTransfers.add(transaction.id);
           processedTransfers.add(transaction.transfer_pair_id);
         }
@@ -314,6 +346,9 @@ const Transactions = () => {
             .single();
           
           if (debitError) throw debitError;
+
+          // Pequeno delay para garantir created_at diferente
+          await new Promise(resolve => setTimeout(resolve, 10));
 
           // Criar transação de entrada (crédito)
           const creditData = {
