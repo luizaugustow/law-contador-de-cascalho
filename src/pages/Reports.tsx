@@ -115,7 +115,9 @@ const Reports = () => {
         .eq("user_id", user.id);
       
       if (selectedAccounts.length > 0) {
-        transQuery = transQuery.in("account_id", selectedAccounts);
+        transQuery = transQuery.or(
+          `account_id.in.(${selectedAccounts.join(',')}),destination_account_id.in.(${selectedAccounts.join(',')})`
+        );
       }
       
       if (selectedCategories.length > 0) {
