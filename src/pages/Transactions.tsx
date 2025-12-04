@@ -188,10 +188,10 @@ const Transactions = () => {
                 return false;
               }
             }
-            // Se apenas a conta par está no filtro, mostrar a par
+            // Se apenas a conta par está no filtro, pular esta (a par será mostrada depois)
             else if (!thisAccountInFilter && pairAccountInFilter) {
               processedTransfers.add(transaction.id);
-              processedTransfers.add(transaction.transfer_pair_id);
+              // NÃO marcar a par como processada - deixar ela aparecer
               return false;
             }
             // Se apenas esta conta está no filtro, mostrar esta
@@ -214,7 +214,9 @@ const Transactions = () => {
           }
           
           processedTransfers.add(transaction.id);
-          processedTransfers.add(transaction.transfer_pair_id);
+          if (transaction.transfer_pair_id) {
+            processedTransfers.add(transaction.transfer_pair_id);
+          }
         }
         return true;
       });
