@@ -29,6 +29,7 @@ type Transaction = {
   transfer_pair_id: string | null;
   created_at: string;
   tags?: Tag[];
+  isTransferCredit?: boolean; // Flag para indicar se é o lado crédito da transferência
 };
 
 type Account = {
@@ -142,7 +143,7 @@ const Transactions = () => {
       if (tagsRes.error) throw tagsRes.error;
 
       // Mapear tags para transações
-      let transactionsWithTags = (transactionsRes.data || []).map(transaction => {
+      let transactionsWithTags: Transaction[] = (transactionsRes.data || []).map(transaction => {
         const transactionTags = (transactionTagsRes.data || [])
           .filter(tt => tt.transaction_id === transaction.id)
           .map(tt => (tagsRes.data || []).find(tag => tag.id === tt.tag_id))
@@ -150,8 +151,9 @@ const Transactions = () => {
         
         return {
           ...transaction,
-          tags: transactionTags
-        };
+          tags: transactionTags,
+          isTransferCredit: false
+        } as Transaction;
       });
 
       // Filtrar transferências duplicadas (mostrar apenas o lado primário - o débito original)
@@ -171,6 +173,13 @@ const Transactions = () => {
           }
           
           const pairTransaction = transactionMap.get(transaction.transfer_pair_id);
+          
+          // Determinar se esta transação é o lado crédito (criada depois)
+          if (pairTransaction) {
+            const thisCreatedAt = new Date(transaction.created_at).getTime();
+            const pairCreatedAt = new Date(pairTransaction.created_at).getTime();
+            transaction.isTransferCredit = thisCreatedAt > pairCreatedAt;
+          }
           
           // Se tem filtro de contas, mostrar a transação relevante para as contas selecionadas
           if (selectedAccounts.length > 0 && pairTransaction) {
@@ -743,7 +752,14 @@ const Transactions = () => {
                           <span className="hidden sm:inline">•</span>
                           {transaction.type === "transferencia" ? (
                             <>
-                              <span className="break-all">De: {getAccountName(transaction.account_id)} → Para: {getAccountName(transaction.destination_account_id || "")}</span>
+                              <span className="break-all">
+                                De: {transaction.isTransferCredit 
+                                  ? getAccountName(transaction.destination_account_id || "") 
+                                  : getAccountName(transaction.account_id)} 
+                                → Para: {transaction.isTransferCredit 
+                                  ? getAccountName(transaction.account_id) 
+                                  : getAccountName(transaction.destination_account_id || "")}
+                              </span>
                             </>
                           ) : (
                             <>
