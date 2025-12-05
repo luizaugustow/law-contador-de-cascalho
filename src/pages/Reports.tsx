@@ -676,8 +676,8 @@ const Reports = () => {
                         <div key={index} className="flex justify-between items-center py-2 border-b border-border/50 last:border-0">
                           <div>
                             <p className="font-medium">{item.account_name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(item.date).toLocaleDateString("pt-BR")}
+                        <p className="text-sm text-muted-foreground">
+                              {item.date.split('-').reverse().join('/')}
                             </p>
                           </div>
                           <p className={`text-lg font-bold ${item.balance >= 0 ? "text-success" : "text-destructive"}`}>
