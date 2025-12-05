@@ -14,7 +14,7 @@ import { z } from "zod";
 
 const accountSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
-  type: z.enum(["corrente", "beneficio", "investimento"], { required_error: "Tipo é obrigatório" }),
+  type: z.enum(["corrente", "beneficio", "investimento", "cartao"], { required_error: "Tipo é obrigatório" }),
   balance: z.number({ required_error: "Saldo é obrigatório" }),
   institution: z.string().max(100, "Nome da instituição muito longo").optional(),
 });
@@ -35,7 +35,7 @@ const Accounts = () => {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [formData, setFormData] = useState({
     name: "",
-    type: "corrente" as "corrente" | "beneficio" | "investimento",
+    type: "corrente" as "corrente" | "beneficio" | "investimento" | "cartao",
     balance: "0",
     institution: "",
   });
@@ -233,6 +233,7 @@ const Accounts = () => {
       corrente: "Conta Corrente",
       beneficio: "Conta Benefício",
       investimento: "Conta Investimento",
+      cartao: "Conta Cartão",
     };
     return types[type] || type;
   };
@@ -245,6 +246,8 @@ const Accounts = () => {
         return <Wallet className="h-5 w-5" />;
       case "investimento":
         return <TrendingUp className="h-5 w-5" />;
+      case "cartao":
+        return <CreditCard className="h-5 w-5" />;
       default:
         return <Wallet className="h-5 w-5" />;
     }
@@ -303,7 +306,7 @@ const Accounts = () => {
                     <Label htmlFor="type">Tipo</Label>
                     <Select
                       value={formData.type}
-                      onValueChange={(value: "corrente" | "beneficio" | "investimento") =>
+                      onValueChange={(value: "corrente" | "beneficio" | "investimento" | "cartao") =>
                         setFormData({ ...formData, type: value })
                       }
                     >
@@ -314,6 +317,7 @@ const Accounts = () => {
                         <SelectItem value="corrente">Conta Corrente</SelectItem>
                         <SelectItem value="beneficio">Conta Benefício</SelectItem>
                         <SelectItem value="investimento">Conta Investimento</SelectItem>
+                        <SelectItem value="cartao">Conta Cartão</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -383,7 +387,7 @@ const Accounts = () => {
                           setEditingAccount(account);
                           setFormData({
                             name: account.name,
-                            type: account.type as "corrente" | "beneficio" | "investimento",
+                            type: account.type as "corrente" | "beneficio" | "investimento" | "cartao",
                             balance: account.initial_balance.toString(),
                             institution: account.institution || "",
                           });
