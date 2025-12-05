@@ -108,7 +108,15 @@ const Reports = () => {
 
       setAccounts(accountsData || []);
 
-      // Fetch transactions with optional filters
+      // Fetch ALL transactions (without account filter) for accurate balance calculation
+      const { data: allTransactions, error: allTransError } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (allTransError) throw allTransError;
+
+      // Fetch transactions with optional filters (for monthly data, dashboards, etc.)
       let transQuery = supabase
         .from("transactions")
         .select("*")
@@ -195,13 +203,14 @@ const Reports = () => {
 
       setMonthlyData(monthly);
 
-      // Calculate daily balances per account (with initial balance)
-      // Sort transactions chronologically
-      const sortedTransactions = filteredTransactions.sort((a, b) => a.date.localeCompare(b.date));
+      // === CONCILIAÇÃO BANCÁRIA ===
+      // Usa TODAS as transações para calcular saldos corretos, filtro apenas limita exibição
+      const sortedAllTransactions = [...(allTransactions || [])].sort((a, b) => a.date.localeCompare(b.date));
 
-      // Calculate running balance for each account on each day
+      // Mapa de saldo acumulado por conta
       const accountBalances = new Map<string, number>();
-      const dailyBalancesList: DailyBalance[] = [];
+      // Mapa de saldo diário final por conta: Map<"date|accountId", balance>
+      const dailyAccountBalances = new Map<string, { date: string; accountId: string; accountName: string; balance: number }>();
 
       // Initialize balances with account initial balance
       accountsData?.forEach(acc => {
@@ -212,13 +221,13 @@ const Reports = () => {
       const processedTransfers = new Set<string>();
 
       // Criar um mapa de transações para encontrar pares
-      const transactionMap = new Map<string, typeof sortedTransactions[0]>();
-      sortedTransactions.forEach(t => {
+      const transactionMap = new Map<string, typeof sortedAllTransactions[0]>();
+      sortedAllTransactions.forEach(t => {
         transactionMap.set(t.id, t);
       });
 
-      // Process transactions chronologically (they modify the running balance)
-      sortedTransactions.forEach((t) => {
+      // Process ALL transactions chronologically to calculate accurate balances
+      sortedAllTransactions.forEach((t) => {
         if (t.type === "transferencia") {
           // Skip if we already processed this transfer pair
           if (processedTransfers.has(t.id)) return;
@@ -238,31 +247,37 @@ const Reports = () => {
 
           // Transferências: debita origem e credita destino
           const originBalance = accountBalances.get(t.account_id) || 0;
-          accountBalances.set(t.account_id, originBalance - Number(t.amount));
+          const newOriginBalance = originBalance - Number(t.amount);
+          accountBalances.set(t.account_id, newOriginBalance);
+          
+          // Update daily balance for origin account
+          const originAccount = accountsData?.find(a => a.id === t.account_id);
+          if (originAccount) {
+            const key = `${t.date}|${t.account_id}`;
+            dailyAccountBalances.set(key, {
+              date: t.date,
+              accountId: t.account_id,
+              accountName: originAccount.name,
+              balance: newOriginBalance,
+            });
+          }
           
           if (t.destination_account_id) {
             const destBalance = accountBalances.get(t.destination_account_id) || 0;
-            accountBalances.set(t.destination_account_id, destBalance + Number(t.amount));
+            const newDestBalance = destBalance + Number(t.amount);
+            accountBalances.set(t.destination_account_id, newDestBalance);
             
-            // Store balance for destination account
+            // Update daily balance for destination account
             const destAccount = accountsData?.find(a => a.id === t.destination_account_id);
             if (destAccount) {
-              dailyBalancesList.push({
+              const key = `${t.date}|${t.destination_account_id}`;
+              dailyAccountBalances.set(key, {
                 date: t.date,
-                account_name: destAccount.name,
-                balance: destBalance + Number(t.amount),
+                accountId: t.destination_account_id,
+                accountName: destAccount.name,
+                balance: newDestBalance,
               });
             }
-          }
-          
-          // Store balance for origin account
-          const account = accountsData?.find(a => a.id === t.account_id);
-          if (account) {
-            dailyBalancesList.push({
-              date: t.date,
-              account_name: account.name,
-              balance: originBalance - Number(t.amount),
-            });
           }
 
           // Mark this transfer and its pair as processed
@@ -276,22 +291,47 @@ const Reports = () => {
           const newBalance = currentBalance + change;
           accountBalances.set(t.account_id, newBalance);
 
-          // Store end-of-day balance for this account on this date
+          // Update daily balance for this account (overwrites previous value for same day)
           const account = accountsData?.find(a => a.id === t.account_id);
           if (account) {
-            dailyBalancesList.push({
+            const key = `${t.date}|${t.account_id}`;
+            dailyAccountBalances.set(key, {
               date: t.date,
-              account_name: account.name,
+              accountId: t.account_id,
+              accountName: account.name,
               balance: newBalance,
             });
           }
         }
       });
 
+      // Convert map to array and apply display filter (only account filter)
+      let dailyBalancesList = Array.from(dailyAccountBalances.values());
+      
+      // Apply account filter for display only (balance already considers ALL transactions)
+      if (selectedAccounts.length > 0) {
+        dailyBalancesList = dailyBalancesList.filter(item => 
+          selectedAccounts.includes(item.accountId)
+        );
+      }
+
+      // Apply date filters for display
+      if (startDate) {
+        dailyBalancesList = dailyBalancesList.filter(item => item.date >= startDate);
+      }
+      if (endDate) {
+        dailyBalancesList = dailyBalancesList.filter(item => item.date <= endDate);
+      }
+
       // Sort by date descending (most recent first)
       dailyBalancesList.sort((a, b) => b.date.localeCompare(a.date));
 
-      setDailyBalances(dailyBalancesList);
+      // Map to DailyBalance format
+      setDailyBalances(dailyBalancesList.map(item => ({
+        date: item.date,
+        account_name: item.accountName,
+        balance: item.balance,
+      })));
 
       // Fetch budgets for the selected month
       const monthStart = selectedMonth + "-01";
