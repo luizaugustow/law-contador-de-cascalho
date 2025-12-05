@@ -140,9 +140,23 @@ const Dashboard = () => {
       corrente: "Conta Corrente",
       beneficio: "Conta Benefício",
       investimento: "Conta Investimento",
+      cartao: "Conta Cartão",
     };
     return types[type] || type;
   };
+
+  const accountTypes = ["corrente", "beneficio", "investimento", "cartao"] as const;
+  
+  const groupedAccounts = accountTypes.map(type => {
+    const accountsOfType = accounts.filter(acc => acc.type === type);
+    const subtotal = accountsOfType.reduce((sum, acc) => sum + Number(acc.balance), 0);
+    return {
+      type,
+      label: getAccountTypeLabel(type),
+      accounts: accountsOfType,
+      subtotal,
+    };
+  }).filter(group => group.accounts.length > 0);
 
   if (loading) {
     return (
@@ -233,36 +247,44 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {accounts.map((account) => (
-                <Card key={account.id} className="bg-gradient-card shadow-md hover:shadow-lg transition-all hover-scale">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span className="text-lg">{account.name}</span>
-                      <Wallet className="h-5 w-5 text-primary" />
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Tipo</p>
-                        <p className="font-medium">{getAccountTypeLabel(account.type)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Saldo</p>
-                        <p className={`text-xl font-bold ${Number(account.balance) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                          {formatCurrency(Number(account.balance))}
-                        </p>
-                      </div>
-                      {account.institution && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Instituição</p>
-                          <p className="font-medium">{account.institution}</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="space-y-6">
+              {groupedAccounts.map((group) => (
+                <div key={group.type}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-medium text-muted-foreground">{group.label}</h4>
+                    <span className={`text-lg font-bold ${group.subtotal >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      {formatCurrency(group.subtotal)}
+                    </span>
+                  </div>
+                  <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                    {group.accounts.map((account) => (
+                      <Card key={account.id} className="bg-gradient-card shadow-md hover:shadow-lg transition-all hover-scale">
+                        <CardHeader>
+                          <CardTitle className="flex items-center justify-between">
+                            <span className="text-lg">{account.name}</span>
+                            <Wallet className="h-5 w-5 text-primary" />
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <div>
+                              <p className="text-sm text-muted-foreground">Saldo</p>
+                              <p className={`text-xl font-bold ${Number(account.balance) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                {formatCurrency(Number(account.balance))}
+                              </p>
+                            </div>
+                            {account.institution && (
+                              <div>
+                                <p className="text-sm text-muted-foreground">Instituição</p>
+                                <p className="font-medium">{account.institution}</p>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}
