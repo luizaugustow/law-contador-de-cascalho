@@ -72,6 +72,7 @@ const Reports = () => {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [open, setOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [formData, setFormData] = useState({
     category_id: "",
     amount: "",
