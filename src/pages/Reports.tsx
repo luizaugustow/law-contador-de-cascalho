@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Target, Calendar, Edit, Trash2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Target, Calendar, Edit, Trash2, Filter } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -72,6 +72,7 @@ const Reports = () => {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [open, setOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [formData, setFormData] = useState({
     category_id: "",
     amount: "",
@@ -508,99 +509,117 @@ const Reports = () => {
   return (
     <Layout>
       <div className="space-y-8 animate-fade-in">
-        <div>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Relatórios</h2>
-          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-            Visualize saldos mensais, acumulados e conciliação bancária
-          </p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Relatórios</h2>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+              Visualize saldos mensais, acumulados e conciliação bancária
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setShowFilters(v => !v)}
+          >
+            <Filter className="h-4 w-4" />
+            Filtros
+            {(selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)) > 0 && (
+              <span className="ml-1 bg-primary text-primary-foreground rounded-full text-xs w-4 h-4 flex items-center justify-center">
+                {selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)}
+              </span>
+            )}
+          </Button>
         </div>
 
         {/* Filtros Globais */}
-        <Card className="bg-gradient-card">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
-              <div>
-                <Label htmlFor="start-date">Data Início</Label>
-                <Input
-                  id="start-date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
+        {showFilters && (
+          <Card className="bg-gradient-card">
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
+                <div>
+                  <Label htmlFor="start-date">Data Início</Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="end-date">Data Fim</Label>
-                <Input
-                  id="end-date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
+                <div>
+                  <Label htmlFor="end-date">Data Fim</Label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="account-filter">Conta</Label>
-                <MultiSelect
-                  options={accounts.map(acc => ({ label: acc.name, value: acc.id }))}
-                  selected={selectedAccounts}
-                  onChange={setSelectedAccounts}
-                  placeholder="Todas as contas"
-                />
-              </div>
+                <div>
+                  <Label htmlFor="account-filter">Conta</Label>
+                  <MultiSelect
+                    options={accounts.map(acc => ({ label: acc.name, value: acc.id }))}
+                    selected={selectedAccounts}
+                    onChange={setSelectedAccounts}
+                    placeholder="Todas as contas"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="category-filter">Categoria</Label>
-                <MultiSelect
-                  options={categories.map(cat => ({ label: cat.name, value: cat.id, emoji: cat.emoji }))}
-                  selected={selectedCategories}
-                  onChange={setSelectedCategories}
-                  placeholder="Todas as categorias"
-                />
-              </div>
+                <div>
+                  <Label htmlFor="category-filter">Categoria</Label>
+                  <MultiSelect
+                    options={categories.map(cat => ({ label: cat.name, value: cat.id, emoji: cat.emoji }))}
+                    selected={selectedCategories}
+                    onChange={setSelectedCategories}
+                    placeholder="Todas as categorias"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="subcategory-filter">Subcategoria</Label>
-                <MultiSelect
-                  options={subcategories
-                    .filter(sub => selectedCategories.length === 0 || selectedCategories.includes(sub.category_id))
-                    .map(sub => ({ label: sub.name, value: sub.id }))}
-                  selected={selectedSubcategories}
-                  onChange={setSelectedSubcategories}
-                  placeholder="Todas as subcategorias"
-                />
-              </div>
+                <div>
+                  <Label htmlFor="subcategory-filter">Subcategoria</Label>
+                  <MultiSelect
+                    options={subcategories
+                      .filter(sub => selectedCategories.length === 0 || selectedCategories.includes(sub.category_id))
+                      .map(sub => ({ label: sub.name, value: sub.id }))}
+                    selected={selectedSubcategories}
+                    onChange={setSelectedSubcategories}
+                    placeholder="Todas as subcategorias"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="tags-filter">Tags</Label>
-                <MultiSelect
-                  options={tags.map(tag => ({ label: tag.name, value: tag.id }))}
-                  selected={selectedTags}
-                  onChange={setSelectedTags}
-                  placeholder="Todas as tags"
-                />
-              </div>
+                <div>
+                  <Label htmlFor="tags-filter">Tags</Label>
+                  <MultiSelect
+                    options={tags.map(tag => ({ label: tag.name, value: tag.id }))}
+                    selected={selectedTags}
+                    onChange={setSelectedTags}
+                    placeholder="Todas as tags"
+                  />
+                </div>
 
-              <div className="flex items-end">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setStartDate("");
-                    setEndDate("");
-                    setSelectedAccounts([]);
-                    setSelectedCategories([]);
-                    setSelectedSubcategories([]);
-                    setSelectedTags([]);
-                  }}
-                  title="Limpar Filtros"
-                >
-                  🗑️
-                </Button>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setStartDate("");
+                      setEndDate("");
+                      setSelectedAccounts([]);
+                      setSelectedCategories([]);
+                      setSelectedSubcategories([]);
+                      setSelectedTags([]);
+                    }}
+                    title="Limpar Filtros"
+                  >
+                    🗑️
+                  </Button>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs defaultValue="monthly" className="space-y-4">
           <TabsList>
