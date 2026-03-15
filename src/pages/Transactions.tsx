@@ -578,6 +578,20 @@ const Transactions = () => {
           </div>
           
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <Button
+              variant="outline"
+              className="gap-2 flex-1 sm:flex-initial"
+              onClick={() => setShowFilters(v => !v)}
+            >
+              <Filter className="h-4 w-4" />
+              Filtros
+              {(selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)) > 0 && (
+                <span className="ml-1 bg-primary text-primary-foreground rounded-full text-xs w-4 h-4 flex items-center justify-center">
+                  {selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)}
+                </span>
+              )}
+            </Button>
+
             <TransactionImport
               accounts={accounts}
               categories={categories}
@@ -615,94 +629,102 @@ const Transactions = () => {
           </div>
         </div>
 
-        {/* Filtros */}
-        <Card className="bg-gradient-card">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-4">
-              <div>
-                <Label htmlFor="start-date">Data Início</Label>
-                <Input
-                  id="start-date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
+        {/* Filtros colapsáveis */}
+        {showFilters && (
+          <Card className="bg-gradient-card">
+            <CardContent className="pt-4 pb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3">
+                <div>
+                  <Label className="text-xs">Data Início</Label>
+                  <Input
+                    id="start-date"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="end-date">Data Fim</Label>
-                <Input
-                  id="end-date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Data Fim</Label>
+                  <Input
+                    id="end-date"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="account-filter">Conta</Label>
-                <MultiSelect
-                  options={accounts.map(acc => ({ label: acc.name, value: acc.id }))}
-                  selected={selectedAccounts}
-                  onChange={setSelectedAccounts}
-                  placeholder="Todas as contas"
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Conta</Label>
+                  <MultiSelect
+                    options={accounts.map(acc => ({ label: acc.name, value: acc.id }))}
+                    selected={selectedAccounts}
+                    onChange={setSelectedAccounts}
+                    placeholder="Todas as contas"
+                    className="h-8 text-sm"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="category-filter">Categoria</Label>
-                <MultiSelect
-                  options={categories.map(cat => ({ label: cat.name, value: cat.id, emoji: cat.emoji }))}
-                  selected={selectedCategories}
-                  onChange={setSelectedCategories}
-                  placeholder="Todas as categorias"
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Categoria</Label>
+                  <MultiSelect
+                    options={categories.map(cat => ({ label: cat.name, value: cat.id, emoji: cat.emoji }))}
+                    selected={selectedCategories}
+                    onChange={setSelectedCategories}
+                    placeholder="Todas as categorias"
+                    className="h-8 text-sm"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="subcategory-filter">Subcategoria</Label>
-                <MultiSelect
-                  options={subcategories
-                    .filter(sub => selectedCategories.length === 0 || selectedCategories.includes(sub.category_id))
-                    .map(sub => ({ label: sub.name, value: sub.id }))}
-                  selected={selectedSubcategories}
-                  onChange={setSelectedSubcategories}
-                  placeholder="Todas as subcategorias"
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Subcategoria</Label>
+                  <MultiSelect
+                    options={subcategories
+                      .filter(sub => selectedCategories.length === 0 || selectedCategories.includes(sub.category_id))
+                      .map(sub => ({ label: sub.name, value: sub.id }))}
+                    selected={selectedSubcategories}
+                    onChange={setSelectedSubcategories}
+                    placeholder="Todas as subcategorias"
+                    className="h-8 text-sm"
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="tags-filter">Tags</Label>
-                <MultiSelect
-                  options={tags.map(tag => ({ label: tag.name, value: tag.id }))}
-                  selected={selectedTags}
-                  onChange={setSelectedTags}
-                  placeholder="Todas as tags"
-                />
-              </div>
+                <div>
+                  <Label className="text-xs">Tags</Label>
+                  <MultiSelect
+                    options={tags.map(tag => ({ label: tag.name, value: tag.id }))}
+                    selected={selectedTags}
+                    onChange={setSelectedTags}
+                    placeholder="Todas as tags"
+                    className="h-8 text-sm"
+                  />
+                </div>
 
-              <div className="flex items-end">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setStartDate("");
-                    setEndDate("");
-                    setSelectedAccounts([]);
-                    setSelectedCategories([]);
-                    setSelectedSubcategories([]);
-                    setSelectedTags([]);
-                  }}
-                  title="Limpar Filtros"
-                >
-                  🗑️
-                </Button>
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    className="w-full h-8 text-sm gap-1"
+                    onClick={() => {
+                      setStartDate("");
+                      setEndDate("");
+                      setSelectedAccounts([]);
+                      setSelectedCategories([]);
+                      setSelectedSubcategories([]);
+                      setSelectedTags([]);
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                    Limpar
+                  </Button>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <div className="space-y-4">
+        <div className="space-y-1">
           {transactions.length === 0 ? (
             <Card className="bg-gradient-card">
               <CardContent className="py-12 text-center">
@@ -714,103 +736,102 @@ const Transactions = () => {
             </Card>
           ) : (
             transactions.map((transaction) => (
-              <Card key={transaction.id} className="bg-gradient-card hover:shadow-lg transition-all">
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-4">
-                    <div className="flex items-center gap-4 w-full sm:w-auto">
-                      {transaction.type === "receita" ? (
-                        <ArrowUpCircle className="h-8 w-8 text-success flex-shrink-0" />
-                      ) : transaction.type === "transferencia" ? (
-                        <div className="flex items-center flex-shrink-0">
-                          <ArrowDownCircle className="h-6 w-6 text-primary" />
-                          <ArrowUpCircle className="h-6 w-6 text-primary -ml-2" />
-                        </div>
-                      ) : (
-                        <ArrowDownCircle className="h-8 w-8 text-destructive flex-shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-base sm:text-lg break-words">{transaction.description}</h3>
-                          {transaction.tags && transaction.tags.length > 0 && (
-                            <div className="flex gap-1 flex-wrap">
-                              {transaction.tags.map(tag => (
-                                <Badge 
-                                  key={tag.id}
-                                  style={{ 
-                                    backgroundColor: tag.color,
-                                    color: '#fff'
-                                  }}
-                                  className="text-xs"
-                                >
-                                  {tag.name}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
-                          <span>{new Date(transaction.date).toLocaleDateString("pt-BR")}</span>
-                          <span className="hidden sm:inline">•</span>
-                          {transaction.type === "transferencia" ? (
-                            <>
-                              <span className="break-all">
-                                De: {transaction.isTransferCredit 
-                                  ? getAccountName(transaction.destination_account_id || "") 
-                                  : getAccountName(transaction.account_id)} 
-                                → Para: {transaction.isTransferCredit 
-                                  ? getAccountName(transaction.account_id) 
-                                  : getAccountName(transaction.destination_account_id || "")}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <span>{getAccountName(transaction.account_id)}</span>
-                              <span className="hidden sm:inline">•</span>
-                              <span className="flex items-center gap-1">
-                                {getCategoryEmoji(transaction.category_id) && (
-                                  <span className="text-base">{getCategoryEmoji(transaction.category_id)}</span>
-                                )}
-                                {getCategoryName(transaction.category_id)}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                        {transaction.observations && (
-                          <p className="text-sm text-muted-foreground mt-2 italic">
-                            {transaction.observations}
-                          </p>
+              <div
+                key={transaction.id}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card border border-border hover:bg-muted/40 transition-colors"
+              >
+                {/* Ícone tipo */}
+                <div className="flex-shrink-0">
+                  {transaction.type === "receita" ? (
+                    <ArrowUpCircle className="h-5 w-5 text-success" />
+                  ) : transaction.type === "transferencia" ? (
+                    <div className="flex items-center">
+                      <ArrowDownCircle className="h-4 w-4 text-primary" />
+                      <ArrowUpCircle className="h-4 w-4 text-primary -ml-1" />
+                    </div>
+                  ) : (
+                    <ArrowDownCircle className="h-5 w-5 text-destructive" />
+                  )}
+                </div>
+
+                {/* Data */}
+                <span className="text-xs text-muted-foreground w-16 flex-shrink-0">
+                  {transaction.date.split('-').reverse().join('/')}
+                </span>
+
+                {/* Descrição + tags */}
+                <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm truncate">{transaction.description}</span>
+                  {transaction.tags && transaction.tags.length > 0 && (
+                    <div className="flex gap-1 flex-wrap">
+                      {transaction.tags.map(tag => (
+                        <Badge
+                          key={tag.id}
+                          style={{ backgroundColor: tag.color, color: '#fff' }}
+                          className="text-xs px-1.5 py-0"
+                        >
+                          {tag.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Conta / categoria */}
+                <div className="hidden md:flex flex-col items-end text-xs text-muted-foreground flex-shrink-0 max-w-[160px]">
+                  {transaction.type === "transferencia" ? (
+                    <span className="truncate">
+                      {transaction.isTransferCredit
+                        ? getAccountName(transaction.destination_account_id || "")
+                        : getAccountName(transaction.account_id)}
+                      {" → "}
+                      {transaction.isTransferCredit
+                        ? getAccountName(transaction.account_id)
+                        : getAccountName(transaction.destination_account_id || "")}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="truncate">{getAccountName(transaction.account_id)}</span>
+                      <span className="truncate flex items-center gap-0.5">
+                        {getCategoryEmoji(transaction.category_id) && (
+                          <span>{getCategoryEmoji(transaction.category_id)}</span>
                         )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-                      <span className={`text-xl sm:text-2xl font-bold ${
-                        transaction.type === "receita" ? "text-success" : 
-                        transaction.type === "transferencia" ? "text-primary" : 
-                        "text-destructive"
-                      }`}>
-                        {transaction.type === "receita" ? "+" : transaction.type === "transferencia" ? "" : "-"}
-                        {formatCurrency(transaction.amount)}
+                        {getCategoryName(transaction.category_id)}
                       </span>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleEdit(transaction)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleDelete(transaction.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    </>
+                  )}
+                </div>
+
+                {/* Valor */}
+                <span className={`text-sm font-semibold flex-shrink-0 w-28 text-right ${
+                  transaction.type === "receita" ? "text-success" :
+                  transaction.type === "transferencia" ? "text-primary" :
+                  "text-destructive"
+                }`}>
+                  {transaction.type === "receita" ? "+" : transaction.type === "transferencia" ? "" : "-"}
+                  {formatCurrency(transaction.amount)}
+                </span>
+
+                {/* Ações */}
+                <div className="flex gap-1 flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => handleEdit(transaction)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => handleDelete(transaction.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
             ))
           )}
         </div>
