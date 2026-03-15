@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp, TrendingDown, Target, Calendar, Edit, Trash2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Target, Calendar, Edit, Trash2, Filter } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
