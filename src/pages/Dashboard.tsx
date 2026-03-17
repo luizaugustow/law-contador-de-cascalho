@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, TrendingUp, TrendingDown, DollarSign } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, DollarSign, Clock, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 type Account = {
   id: string;
@@ -14,10 +15,22 @@ type Account = {
   institution: string | null;
 };
 
+type PendingTransaction = {
+  id: string;
+  description: string;
+  amount: number;
+  type: string;
+  date: string;
+  account_id: string;
+  category_id: string | null;
+};
+
 const Dashboard = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [totalBalance, setTotalBalance] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [pendingTransactions, setPendingTransactions] = useState<PendingTransaction[]>([]);
+  const [accountNames, setAccountNames] = useState<Map<string, string>>(new Map());
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -42,13 +55,29 @@ const Dashboard = () => {
 
       if (accountsError) throw accountsError;
 
-      // Fetch all transactions to calculate current balance
       const { data: transactionsData, error: transError } = await supabase
         .from("transactions")
-        .select("id, account_id, amount, type, date, destination_account_id, transfer_pair_id, created_at")
+        .select("id, account_id, amount, type, date, destination_account_id, transfer_pair_id, created_at, status")
         .lte("date", new Date().toISOString().split('T')[0]);
 
       if (transError) throw transError;
+
+      // Pending transactions (all dates, not just past)
+      const { data: pendingData, error: pendingError } = await supabase
+        .from("transactions")
+        .select("id, description, amount, type, date, account_id, category_id, transfer_pair_id, created_at")
+        .eq("status", "pendente")
+        .neq("type", "transferencia")
+        .order("date", { ascending: true })
+        .limit(10);
+
+      if (pendingError) throw pendingError;
+
+      // Build account name map
+      const nameMap = new Map<string, string>();
+      (accountsData || []).forEach(acc => nameMap.set(acc.id, acc.name));
+      setAccountNames(nameMap);
+      setPendingTransactions(pendingData || []);
 
       // Calculate current balance for each account
       const accountBalances = new Map<string, number>();
@@ -56,30 +85,24 @@ const Dashboard = () => {
         accountBalances.set(acc.id, Number(acc.balance));
       });
 
-      // Track processed transfers to avoid double-counting
       const processedTransfers = new Set<string>();
-
-      // Criar um mapa de transações para encontrar pares
       const transactionMap = new Map<string, typeof transactionsData[0]>();
       (transactionsData || []).forEach(t => {
         transactionMap.set(t.id, t);
       });
 
-      // Apply transactions to calculate current balance
       (transactionsData || []).forEach(t => {
+        // Only count realized transactions for balance
+        if ((t as any).status === 'pendente') return;
+
         if (t.type === "transferencia") {
-          // Skip if we already processed this transfer pair
           if (processedTransfers.has(t.id)) return;
           
-          // Para transferências com par, processar apenas a transação criada primeiro (débito original)
           if (t.transfer_pair_id) {
             const pairTransaction = transactionMap.get(t.transfer_pair_id);
             if (pairTransaction) {
-              // Comparar created_at - a transação criada primeiro é o débito original
               const thisCreatedAt = new Date(t.created_at).getTime();
               const pairCreatedAt = new Date(pairTransaction.created_at).getTime();
-              
-              // Se esta transação foi criada DEPOIS, pular - vamos processar a outra
               if (thisCreatedAt > pairCreatedAt) {
                 processedTransfers.add(t.id);
                 return;
@@ -87,7 +110,6 @@ const Dashboard = () => {
             }
           }
           
-          // Transferências: debita conta origem (account_id) e credita destino (destination_account_id)
           const originBalance = accountBalances.get(t.account_id) || 0;
           accountBalances.set(t.account_id, originBalance - Number(t.amount));
           
@@ -96,7 +118,6 @@ const Dashboard = () => {
             accountBalances.set(t.destination_account_id, destBalance + Number(t.amount));
           }
 
-          // Mark this transfer and its pair as processed
           processedTransfers.add(t.id);
           if (t.transfer_pair_id) {
             processedTransfers.add(t.transfer_pair_id);
@@ -108,7 +129,6 @@ const Dashboard = () => {
         }
       });
 
-      // Update accounts with current balances
       const accountsWithCurrentBalance = (accountsData || []).map(acc => ({
         ...acc,
         balance: accountBalances.get(acc.id) || Number(acc.balance)
@@ -158,6 +178,10 @@ const Dashboard = () => {
     };
   }).filter(group => group.accounts.length > 0);
 
+  const today = new Date().toISOString().split('T')[0];
+  const overduePending = pendingTransactions.filter(t => t.date < today);
+  const upcomingPending = pendingTransactions.filter(t => t.date >= today);
+
   if (loading) {
     return (
       <Layout>
@@ -187,7 +211,7 @@ const Dashboard = () => {
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(totalBalance)}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Todas as contas
+                Todas as contas (realizado)
               </p>
             </CardContent>
           </Card>
@@ -231,6 +255,79 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Próximos Pagamentos Pendentes */}
+        {pendingTransactions.length > 0 && (
+          <div>
+            <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-warning" />
+              Pagamentos Pendentes
+            </h3>
+
+            {overduePending.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs text-destructive font-semibold uppercase tracking-wide mb-2">Vencidos</p>
+                <div className="space-y-1">
+                  {overduePending.map(t => (
+                    <div
+                      key={t.id}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg bg-destructive/5 border border-destructive/20"
+                    >
+                      {t.type === "receita" ? (
+                        <ArrowUpCircle className="h-4 w-4 text-success flex-shrink-0" />
+                      ) : (
+                        <ArrowDownCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                      )}
+                      <span className="text-xs text-muted-foreground w-16 flex-shrink-0">
+                        {t.date.split('-').reverse().join('/')}
+                      </span>
+                      <span className="flex-1 text-sm font-medium truncate">{t.description}</span>
+                      <span className="text-xs text-muted-foreground hidden sm:block flex-shrink-0">
+                        {accountNames.get(t.account_id) || ""}
+                      </span>
+                      <Badge variant="outline" className="border-destructive text-destructive text-xs flex-shrink-0">
+                        Vencido
+                      </Badge>
+                      <span className={`text-sm font-semibold flex-shrink-0 ${t.type === "receita" ? "text-success" : "text-destructive"}`}>
+                        {t.type === "receita" ? "+" : "-"}{formatCurrency(t.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {upcomingPending.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wide mb-2">Próximos</p>
+                <div className="space-y-1">
+                  {upcomingPending.map(t => (
+                    <div
+                      key={t.id}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card border border-dashed border-border/60"
+                    >
+                      {t.type === "receita" ? (
+                        <ArrowUpCircle className="h-4 w-4 text-success flex-shrink-0" />
+                      ) : (
+                        <ArrowDownCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                      )}
+                      <span className="text-xs text-muted-foreground w-16 flex-shrink-0">
+                        {t.date.split('-').reverse().join('/')}
+                      </span>
+                      <span className="flex-1 text-sm font-medium truncate">{t.description}</span>
+                      <span className="text-xs text-muted-foreground hidden sm:block flex-shrink-0">
+                        {accountNames.get(t.account_id) || ""}
+                      </span>
+                      <span className={`text-sm font-semibold flex-shrink-0 ${t.type === "receita" ? "text-success" : "text-destructive"}`}>
+                        {t.type === "receita" ? "+" : "-"}{formatCurrency(t.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div>
           <h3 className="text-xl font-semibold mb-4">Suas Contas</h3>

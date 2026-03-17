@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, ArrowUpCircle, ArrowDownCircle, Filter, X } from "lucide-react";
-import { MultiSelect, Option } from "@/components/ui/multi-select";
+import { Plus, Pencil, Trash2, ArrowUpCircle, ArrowDownCircle, Filter, X, Clock, CheckCircle2 } from "lucide-react";
+import { MultiSelect } from "@/components/ui/multi-select";
 import Layout from "@/components/Layout";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -28,8 +27,9 @@ type Transaction = {
   destination_account_id: string | null;
   transfer_pair_id: string | null;
   created_at: string;
+  status: string;
   tags?: Tag[];
-  isTransferCredit?: boolean; // Flag para indicar se é o lado crédito da transferência
+  isTransferCredit?: boolean;
 };
 
 type Account = {
@@ -69,6 +69,7 @@ const Transactions = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<string>("todos");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [formData, setFormData] = useState({
@@ -82,6 +83,7 @@ const Transactions = () => {
     observations: "",
     tag_ids: [] as string[],
     destination_account_id: "",
+    status: "pendente",
   });
 
   const navigate = useNavigate();
@@ -90,7 +92,7 @@ const Transactions = () => {
   useEffect(() => {
     checkAuth();
     fetchData();
-  }, [selectedAccounts, selectedCategories, selectedSubcategories, selectedTags, startDate, endDate]);
+  }, [selectedAccounts, selectedCategories, selectedSubcategories, selectedTags, startDate, endDate, selectedStatus]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -103,7 +105,7 @@ const Transactions = () => {
     try {
       let transQuery = supabase
         .from("transactions")
-        .select("*, transfer_pair_id, created_at")
+        .select("*, transfer_pair_id, created_at, status")
         .order("date", { ascending: false });
 
       if (selectedAccounts.length > 0) {
@@ -128,6 +130,10 @@ const Transactions = () => {
         transQuery = transQuery.lte("date", endDate);
       }
 
+      if (selectedStatus !== "todos") {
+        transQuery = transQuery.eq("status", selectedStatus);
+      }
+
       const [transactionsRes, accountsRes, categoriesRes, subcategoriesRes, tagsRes, transactionTagsRes] = await Promise.all([
         transQuery,
         supabase.from("accounts").select("id, name").order("name", { ascending: true }),
@@ -143,7 +149,6 @@ const Transactions = () => {
       if (subcategoriesRes.error) throw subcategoriesRes.error;
       if (tagsRes.error) throw tagsRes.error;
 
-      // Mapear tags para transações
       let transactionsWithTags: Transaction[] = (transactionsRes.data || []).map(transaction => {
         const transactionTags = (transactionTagsRes.data || [])
           .filter(tt => tt.transaction_id === transaction.id)
@@ -152,13 +157,12 @@ const Transactions = () => {
         
         return {
           ...transaction,
+          status: transaction.status || 'realizado',
           tags: transactionTags,
           isTransferCredit: false
         } as Transaction;
       });
 
-      // Filtrar transferências duplicadas (mostrar apenas o lado primário - o débito original)
-      // Criar mapa para encontrar pares
       const transactionMap = new Map<string, typeof transactionsWithTags[0]>();
       transactionsWithTags.forEach(t => {
         transactionMap.set(t.id, t);
@@ -168,26 +172,22 @@ const Transactions = () => {
 
       transactionsWithTags = transactionsWithTags.filter(transaction => {
         if (transaction.type === "transferencia" && transaction.transfer_pair_id) {
-          // Se já processamos este par, pular
           if (processedTransfers.has(transaction.id)) {
             return false;
           }
           
           const pairTransaction = transactionMap.get(transaction.transfer_pair_id);
           
-          // Determinar se esta transação é o lado crédito (criada depois)
           if (pairTransaction) {
             const thisCreatedAt = new Date(transaction.created_at).getTime();
             const pairCreatedAt = new Date(pairTransaction.created_at).getTime();
             transaction.isTransferCredit = thisCreatedAt > pairCreatedAt;
           }
           
-          // Se tem filtro de contas, mostrar a transação relevante para as contas selecionadas
           if (selectedAccounts.length > 0 && pairTransaction) {
             const thisAccountInFilter = selectedAccounts.includes(transaction.account_id);
             const pairAccountInFilter = selectedAccounts.includes(pairTransaction.account_id);
             
-            // Se ambas as contas estão no filtro, mostrar a mais antiga (débito)
             if (thisAccountInFilter && pairAccountInFilter) {
               const thisCreatedAt = new Date(transaction.created_at).getTime();
               const pairCreatedAt = new Date(pairTransaction.created_at).getTime();
@@ -198,20 +198,16 @@ const Transactions = () => {
                 return false;
               }
             }
-            // Se apenas a conta par está no filtro, pular esta (a par será mostrada depois)
             else if (!thisAccountInFilter && pairAccountInFilter) {
               processedTransfers.add(transaction.id);
-              // NÃO marcar a par como processada - deixar ela aparecer
               return false;
             }
-            // Se apenas esta conta está no filtro, mostrar esta
             else if (thisAccountInFilter && !pairAccountInFilter) {
               processedTransfers.add(transaction.id);
               processedTransfers.add(transaction.transfer_pair_id);
               return true;
             }
           }
-          // Sem filtro de contas: mostrar sempre a mais antiga (débito original)
           else if (pairTransaction) {
             const thisCreatedAt = new Date(transaction.created_at).getTime();
             const pairCreatedAt = new Date(pairTransaction.created_at).getTime();
@@ -231,7 +227,6 @@ const Transactions = () => {
         return true;
       });
 
-      // Filtrar por tags selecionadas
       if (selectedTags.length > 0) {
         transactionsWithTags = transactionsWithTags.filter(transaction =>
           transaction.tags?.some(tag => selectedTags.includes(tag.id))
@@ -254,6 +249,34 @@ const Transactions = () => {
     }
   };
 
+  const handleToggleStatus = async (transaction: Transaction) => {
+    const newStatus = transaction.status === 'pendente' ? 'realizado' : 'pendente';
+    try {
+      const { error: e1 } = await supabase
+        .from("transactions")
+        .update({ status: newStatus })
+        .eq("id", transaction.id);
+      if (e1) throw e1;
+
+      if (transaction.type === "transferencia" && transaction.transfer_pair_id) {
+        const { error: e2 } = await supabase
+          .from("transactions")
+          .update({ status: newStatus })
+          .eq("id", transaction.transfer_pair_id);
+        if (e2) throw e2;
+      }
+      setTransactions(prev =>
+        prev.map(t =>
+          t.id === transaction.id || t.id === transaction.transfer_pair_id
+            ? { ...t, status: newStatus }
+            : t
+        )
+      );
+    } catch (error: any) {
+      toast({ title: "Erro ao atualizar status", description: error.message, variant: "destructive" });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -262,7 +285,6 @@ const Transactions = () => {
       if (!user) throw new Error("Usuário não autenticado");
 
       if (editingId) {
-        // Atualizar transação existente
         const transactionData = {
           description: formData.description,
           amount: Number(formData.amount),
@@ -273,10 +295,10 @@ const Transactions = () => {
           subcategory_id: formData.subcategory_id || null,
           observations: formData.observations || null,
           destination_account_id: formData.destination_account_id || null,
+          status: formData.status,
           user_id: user.id,
         };
 
-        // Verificar se é uma transferência para atualizar a transação par
         const { data: currentTransaction } = await supabase
           .from("transactions")
           .select("type, transfer_pair_id")
@@ -290,7 +312,6 @@ const Transactions = () => {
         
         if (error) throw error;
 
-        // Se for transferência, atualizar a transação par
         if (formData.type === "transferencia" && currentTransaction?.transfer_pair_id) {
           const pairData = {
             description: formData.description,
@@ -302,6 +323,7 @@ const Transactions = () => {
             subcategory_id: null,
             observations: formData.observations || null,
             destination_account_id: formData.account_id,
+            status: formData.status,
             user_id: user.id,
           };
 
@@ -311,33 +333,17 @@ const Transactions = () => {
             .eq("id", currentTransaction.transfer_pair_id);
         }
 
-        // Deletar tags antigas e inserir novas
-        await supabase
-          .from("transaction_tags")
-          .delete()
-          .eq("transaction_id", editingId);
+        await supabase.from("transaction_tags").delete().eq("transaction_id", editingId);
 
         if (formData.tag_ids.length > 0) {
-          const tagRecords = formData.tag_ids.map(tag_id => ({
-            transaction_id: editingId,
-            tag_id
-          }));
-          
-          const { error: tagError } = await supabase
-            .from("transaction_tags")
-            .insert(tagRecords);
-          
+          const tagRecords = formData.tag_ids.map(tag_id => ({ transaction_id: editingId, tag_id }));
+          const { error: tagError } = await supabase.from("transaction_tags").insert(tagRecords);
           if (tagError) throw tagError;
         }
         
-        toast({
-          title: "Transação atualizada",
-          description: "A transação foi atualizada com sucesso.",
-        });
+        toast({ title: "Transação atualizada", description: "A transação foi atualizada com sucesso." });
       } else {
-        // Criar nova transação
         if (formData.type === "transferencia") {
-          // Criar transação de saída (débito)
           const debitData = {
             description: formData.description,
             amount: Number(formData.amount),
@@ -348,21 +354,16 @@ const Transactions = () => {
             subcategory_id: null,
             observations: formData.observations || null,
             destination_account_id: formData.destination_account_id,
+            status: formData.status,
             user_id: user.id,
           };
 
           const { data: debitTransaction, error: debitError } = await supabase
-            .from("transactions")
-            .insert([debitData])
-            .select()
-            .single();
-          
+            .from("transactions").insert([debitData]).select().single();
           if (debitError) throw debitError;
 
-          // Pequeno delay para garantir created_at diferente
           await new Promise(resolve => setTimeout(resolve, 10));
 
-          // Criar transação de entrada (crédito)
           const creditData = {
             description: formData.description,
             amount: Number(formData.amount),
@@ -373,45 +374,26 @@ const Transactions = () => {
             subcategory_id: null,
             observations: formData.observations || null,
             destination_account_id: formData.account_id,
+            status: formData.status,
             user_id: user.id,
             transfer_pair_id: debitTransaction.id,
           };
 
           const { data: creditTransaction, error: creditError } = await supabase
-            .from("transactions")
-            .insert([creditData])
-            .select()
-            .single();
-          
+            .from("transactions").insert([creditData]).select().single();
           if (creditError) throw creditError;
 
-          // Atualizar a transação de débito com o ID da transação de crédito
-          await supabase
-            .from("transactions")
-            .update({ transfer_pair_id: creditTransaction.id })
-            .eq("id", debitTransaction.id);
+          await supabase.from("transactions").update({ transfer_pair_id: creditTransaction.id }).eq("id", debitTransaction.id);
 
-          // Inserir tags em ambas as transações
           if (formData.tag_ids.length > 0) {
             const tagRecords = [
-              ...formData.tag_ids.map(tag_id => ({
-                transaction_id: debitTransaction.id,
-                tag_id
-              })),
-              ...formData.tag_ids.map(tag_id => ({
-                transaction_id: creditTransaction.id,
-                tag_id
-              }))
+              ...formData.tag_ids.map(tag_id => ({ transaction_id: debitTransaction.id, tag_id })),
+              ...formData.tag_ids.map(tag_id => ({ transaction_id: creditTransaction.id, tag_id })),
             ];
-            
-            const { error: tagError } = await supabase
-              .from("transaction_tags")
-              .insert(tagRecords);
-            
+            const { error: tagError } = await supabase.from("transaction_tags").insert(tagRecords);
             if (tagError) throw tagError;
           }
         } else {
-          // Criar transação normal (receita ou despesa)
           const transactionData = {
             description: formData.description,
             amount: Number(formData.amount),
@@ -422,47 +404,29 @@ const Transactions = () => {
             subcategory_id: formData.subcategory_id || null,
             observations: formData.observations || null,
             destination_account_id: null,
+            status: formData.status,
             user_id: user.id,
           };
 
           const { data: newTransaction, error } = await supabase
-            .from("transactions")
-            .insert([transactionData])
-            .select()
-            .single();
-          
+            .from("transactions").insert([transactionData]).select().single();
           if (error) throw error;
 
-          // Inserir tags
           if (formData.tag_ids.length > 0 && newTransaction) {
-            const tagRecords = formData.tag_ids.map(tag_id => ({
-              transaction_id: newTransaction.id,
-              tag_id
-            }));
-            
-            const { error: tagError } = await supabase
-              .from("transaction_tags")
-              .insert(tagRecords);
-            
+            const tagRecords = formData.tag_ids.map(tag_id => ({ transaction_id: newTransaction.id, tag_id }));
+            const { error: tagError } = await supabase.from("transaction_tags").insert(tagRecords);
             if (tagError) throw tagError;
           }
         }
         
-        toast({
-          title: "Transação criada",
-          description: "A transação foi criada com sucesso.",
-        });
+        toast({ title: "Transação criada", description: "A transação foi criada com sucesso." });
       }
 
       setOpen(false);
       resetForm();
       fetchData();
     } catch (error: any) {
-      toast({
-        title: "Erro ao salvar transação",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao salvar transação", description: error.message, variant: "destructive" });
     }
   };
 
@@ -479,6 +443,7 @@ const Transactions = () => {
       observations: transaction.observations || "",
       tag_ids: transaction.tags?.map(t => t.id) || [],
       destination_account_id: transaction.destination_account_id || "",
+      status: transaction.status || "pendente",
     });
     setOpen(true);
   };
@@ -487,33 +452,12 @@ const Transactions = () => {
     if (!confirm("Tem certeza que deseja excluir esta transação?")) return;
 
     try {
-      // Verificar se é uma transferência para deletar ambas as transações
-      const { data: transaction } = await supabase
-        .from("transactions")
-        .select("transfer_pair_id")
-        .eq("id", id)
-        .single();
-
-      // Deletar a transação (o CASCADE vai deletar a transação par automaticamente)
-      const { error } = await supabase
-        .from("transactions")
-        .delete()
-        .eq("id", id);
-
+      const { error } = await supabase.from("transactions").delete().eq("id", id);
       if (error) throw error;
-
-      toast({
-        title: "Transação excluída",
-        description: "A transação foi excluída com sucesso.",
-      });
-      
+      toast({ title: "Transação excluída", description: "A transação foi excluída com sucesso." });
       fetchData();
     } catch (error: any) {
-      toast({
-        title: "Erro ao excluir transação",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao excluir transação", description: error.message, variant: "destructive" });
     }
   };
 
@@ -529,32 +473,22 @@ const Transactions = () => {
       observations: "",
       tag_ids: [],
       destination_account_id: "",
+      status: "pendente",
     });
     setEditingId(null);
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
   };
 
-  const getAccountName = (id: string) => {
-    return accounts.find(a => a.id === id)?.name || "N/A";
-  };
-
-  const getCategoryName = (id: string | null) => {
-    if (!id) return "N/A";
-    return categories.find(c => c.id === id)?.name || "N/A";
-  };
-
-  const getCategoryEmoji = (id: string | null) => {
-    if (!id) return "";
-    return categories.find(c => c.id === id)?.emoji || "";
-  };
+  const getAccountName = (id: string) => accounts.find(a => a.id === id)?.name || "N/A";
+  const getCategoryName = (id: string | null) => id ? categories.find(c => c.id === id)?.name || "N/A" : "N/A";
+  const getCategoryEmoji = (id: string | null) => id ? categories.find(c => c.id === id)?.emoji || "" : "";
 
   const filteredSubcategories = subcategories.filter(s => s.category_id === formData.category_id);
+
+  const activeFilterCount = selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0) + (selectedStatus !== "todos" ? 1 : 0);
 
   if (loading) {
     return (
@@ -568,7 +502,7 @@ const Transactions = () => {
 
   return (
     <Layout>
-      <div className="space-y-8 animate-fade-in">
+      <div className="space-y-4 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Transações</h2>
@@ -585,9 +519,9 @@ const Transactions = () => {
             >
               <Filter className="h-4 w-4" />
               Filtros
-              {(selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)) > 0 && (
+              {activeFilterCount > 0 && (
                 <span className="ml-1 bg-primary text-primary-foreground rounded-full text-xs w-4 h-4 flex items-center justify-center">
-                  {selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)}
+                  {activeFilterCount}
                 </span>
               )}
             </Button>
@@ -608,23 +542,23 @@ const Transactions = () => {
                   <span className="sm:inline">Nova Transação</span>
                 </Button>
               </DialogTrigger>
-            <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingId ? "Editar Transação" : "Nova Transação"}
-                </DialogTitle>
-              </DialogHeader>
-              <TransactionForm
-                formData={formData}
-                setFormData={setFormData}
-                accounts={accounts}
-                categories={categories}
-                subcategories={subcategories}
-                tags={tags}
-                filteredSubcategories={filteredSubcategories}
-                onSubmit={handleSubmit}
-              />
-            </DialogContent>
+              <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingId ? "Editar Transação" : "Nova Transação"}
+                  </DialogTitle>
+                </DialogHeader>
+                <TransactionForm
+                  formData={formData}
+                  setFormData={setFormData}
+                  accounts={accounts}
+                  categories={categories}
+                  subcategories={subcategories}
+                  tags={tags}
+                  filteredSubcategories={filteredSubcategories}
+                  onSubmit={handleSubmit}
+                />
+              </DialogContent>
             </Dialog>
           </div>
         </div>
@@ -633,11 +567,10 @@ const Transactions = () => {
         {showFilters && (
           <Card className="bg-gradient-card">
             <CardContent className="pt-4 pb-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-8 gap-3">
                 <div>
                   <Label className="text-xs">Data Início</Label>
                   <Input
-                    id="start-date"
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
@@ -648,12 +581,24 @@ const Transactions = () => {
                 <div>
                   <Label className="text-xs">Data Fim</Label>
                   <Input
-                    id="end-date"
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     className="h-8 text-sm"
                   />
+                </div>
+
+                <div>
+                  <Label className="text-xs">Status</Label>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="h-8 text-sm w-full border border-input rounded-md bg-background px-2"
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="pendente">Pendente</option>
+                    <option value="realizado">Realizado</option>
+                  </select>
                 </div>
 
                 <div>
@@ -713,6 +658,7 @@ const Transactions = () => {
                       setSelectedCategories([]);
                       setSelectedSubcategories([]);
                       setSelectedTags([]);
+                      setSelectedStatus("todos");
                     }}
                   >
                     <X className="h-3 w-3" />
@@ -738,8 +684,25 @@ const Transactions = () => {
             transactions.map((transaction) => (
               <div
                 key={transaction.id}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card border border-border hover:bg-muted/40 transition-colors"
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors ${
+                  transaction.status === 'pendente'
+                    ? 'bg-muted/20 border-dashed border-border/60 opacity-80'
+                    : 'bg-card border-border hover:bg-muted/40'
+                }`}
               >
+                {/* Status toggle */}
+                <button
+                  onClick={() => handleToggleStatus(transaction)}
+                  className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                  title={transaction.status === 'pendente' ? 'Marcar como realizado' : 'Marcar como pendente'}
+                >
+                  {transaction.status === 'pendente' ? (
+                    <Clock className="h-4 w-4 text-warning" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-success" />
+                  )}
+                </button>
+
                 {/* Ícone tipo */}
                 <div className="flex-shrink-0">
                   {transaction.type === "receita" ? (
@@ -762,6 +725,11 @@ const Transactions = () => {
                 {/* Descrição + tags */}
                 <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm truncate">{transaction.description}</span>
+                  {transaction.status === 'pendente' && (
+                    <Badge variant="outline" className="text-xs px-1.5 py-0 border-warning text-warning">
+                      Pendente
+                    </Badge>
+                  )}
                   {transaction.tags && transaction.tags.length > 0 && (
                     <div className="flex gap-1 flex-wrap">
                       {transaction.tags.map(tag => (

@@ -57,6 +57,7 @@ type Account = {
 
 const Reports = () => {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const [monthlyDataPlanned, setMonthlyDataPlanned] = useState<MonthlyData[]>([]);
   const [dailyBalances, setDailyBalances] = useState<DailyBalance[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -73,6 +74,8 @@ const Reports = () => {
   const [endDate, setEndDate] = useState<string>("");
   const [open, setOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  // "realizado" | "planejado" | "todos"
+  const [statusView, setStatusView] = useState<"realizado" | "planejado" | "todos">("realizado");
   const [formData, setFormData] = useState({
     category_id: "",
     amount: "",
@@ -86,7 +89,7 @@ const Reports = () => {
   useEffect(() => {
     checkAuth();
     fetchData();
-  }, [selectedMonth, selectedAccounts, selectedCategories, selectedSubcategories, selectedTags, startDate, endDate]);
+  }, [selectedMonth, selectedAccounts, selectedCategories, selectedSubcategories, selectedTags, startDate, endDate, statusView]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -117,37 +120,29 @@ const Reports = () => {
 
       if (allTransError) throw allTransError;
 
-      // Fetch transactions with optional filters (for monthly data, dashboards, etc.)
-      let transQuery = supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", user.id);
-      
-      if (selectedAccounts.length > 0) {
-        transQuery = transQuery.or(
-          `account_id.in.(${selectedAccounts.join(',')}),destination_account_id.in.(${selectedAccounts.join(',')})`
-        );
-      }
-      
-      if (selectedCategories.length > 0) {
-        transQuery = transQuery.in("category_id", selectedCategories);
-      }
+      // Build base query with common filters
+      const buildTransQuery = (statusFilter?: string) => {
+        let q = supabase.from("transactions").select("*").eq("user_id", user.id);
+        if (selectedAccounts.length > 0) {
+          q = q.or(`account_id.in.(${selectedAccounts.join(',')}),destination_account_id.in.(${selectedAccounts.join(',')})`);
+        }
+        if (selectedCategories.length > 0) q = q.in("category_id", selectedCategories);
+        if (selectedSubcategories.length > 0) q = q.in("subcategory_id", selectedSubcategories);
+        if (startDate) q = q.gte("date", startDate);
+        if (endDate) q = q.lte("date", endDate);
+        if (statusFilter && statusFilter !== "todos") q = q.eq("status", statusFilter);
+        return q;
+      };
 
-      if (selectedSubcategories.length > 0) {
-        transQuery = transQuery.in("subcategory_id", selectedSubcategories);
-      }
+      const [transRes, transPlannedRes] = await Promise.all([
+        buildTransQuery(statusView === "todos" ? undefined : statusView),
+        buildTransQuery("pendente"),
+      ]);
 
-      if (startDate) {
-        transQuery = transQuery.gte("date", startDate);
-      }
+      const transactions = transRes.data || [];
+      const transPlanned = transPlannedRes.data || [];
 
-      if (endDate) {
-        transQuery = transQuery.lte("date", endDate);
-      }
-
-      const { data: transactions, error: transError } = await transQuery;
-
-      if (transError) throw transError;
+      if (transRes.error) throw transRes.error;
 
       // Fetch tags and transaction_tags
       const { data: tagsData } = await supabase
@@ -161,51 +156,44 @@ const Reports = () => {
         .from("transaction_tags")
         .select("transaction_id, tag_id");
 
-      // Filtrar transações por tags se houver seleção
-      let filteredTransactions = transactions || [];
-      if (selectedTags.length > 0) {
-        const transactionIdsWithSelectedTags = new Set(
+      // Helper: filter by tags
+      const applyTagFilter = (list: typeof transactions) => {
+        if (selectedTags.length === 0) return list;
+        const ids = new Set(
           (transactionTagsData || [])
             .filter(tt => selectedTags.includes(tt.tag_id))
             .map(tt => tt.transaction_id)
         );
-        filteredTransactions = filteredTransactions.filter(t =>
-          transactionIdsWithSelectedTags.has(t.id)
-        );
-      }
+        return list.filter(t => ids.has(t.id));
+      };
 
-      // Calculate monthly data
-      const monthlyMap = new Map<string, { income: number; expense: number }>();
-      
-      filteredTransactions.forEach((t) => {
-        // Transferências não contam como receita ou despesa nos relatórios
-        if (t.type === "transferencia") return;
-        
-        const month = t.date.slice(0, 7);
-        if (!monthlyMap.has(month)) {
-          monthlyMap.set(month, { income: 0, expense: 0 });
-        }
-        const data = monthlyMap.get(month)!;
-        if (t.type === "receita") {
-          data.income += Number(t.amount);
-        } else if (t.type === "despesa") {
-          data.expense += Number(t.amount);
-        }
-      });
+      let filteredTransactions = applyTagFilter(transactions);
+      let filteredPlanned = applyTagFilter(transPlanned);
 
-      const monthly = Array.from(monthlyMap.entries())
-        .map(([month, data]) => ({
-          month,
-          income: data.income,
-          expense: data.expense,
-          balance: data.income - data.expense,
-        }))
-        .sort((a, b) => b.month.localeCompare(a.month));
+      // Helper to build monthly aggregate
+      const buildMonthly = (list: typeof filteredTransactions) => {
+        const map = new Map<string, { income: number; expense: number }>();
+        list.forEach((t) => {
+          if (t.type === "transferencia") return;
+          const month = t.date.slice(0, 7);
+          if (!map.has(month)) map.set(month, { income: 0, expense: 0 });
+          const d = map.get(month)!;
+          if (t.type === "receita") d.income += Number(t.amount);
+          else if (t.type === "despesa") d.expense += Number(t.amount);
+        });
+        return Array.from(map.entries())
+          .map(([month, data]) => ({ month, income: data.income, expense: data.expense, balance: data.income - data.expense }))
+          .sort((a, b) => b.month.localeCompare(a.month));
+      };
+
+      const monthly = buildMonthly(filteredTransactions);
+      const monthlyPlanned = buildMonthly(filteredPlanned);
 
       setMonthlyData(monthly);
+      setMonthlyDataPlanned(monthlyPlanned);
 
       // === CONCILIAÇÃO BANCÁRIA ===
-      // Usa TODAS as transações para calcular saldos corretos, filtro apenas limita exibição
+      // Usa allTransactions já buscadas acima para calcular saldos corretos
       const sortedAllTransactions = [...(allTransactions || [])].sort((a, b) => a.date.localeCompare(b.date));
 
       // Mapa de saldo acumulado por conta
@@ -508,7 +496,7 @@ const Reports = () => {
 
   return (
     <Layout>
-      <div className="space-y-8 animate-fade-in">
+      <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Relatórios</h2>
@@ -517,19 +505,38 @@ const Reports = () => {
             </p>
           </div>
 
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => setShowFilters(v => !v)}
-          >
-            <Filter className="h-4 w-4" />
-            Filtros
-            {(selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)) > 0 && (
-              <span className="ml-1 bg-primary text-primary-foreground rounded-full text-xs w-4 h-4 flex items-center justify-center">
-                {selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)}
-              </span>
-            )}
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            {/* Realizado / Planejado / Todos toggle */}
+            <div className="flex rounded-md border border-border overflow-hidden">
+              {(["realizado", "planejado", "todos"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setStatusView(v)}
+                  className={`px-3 py-1.5 text-sm capitalize transition-colors ${
+                    statusView === v
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {v === "realizado" ? "✅ Realizado" : v === "planejado" ? "⏳ Planejado" : "Todos"}
+                </button>
+              ))}
+            </div>
+
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setShowFilters(v => !v)}
+            >
+              <Filter className="h-4 w-4" />
+              Filtros
+              {(selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)) > 0 && (
+                <span className="ml-1 bg-primary text-primary-foreground rounded-full text-xs w-4 h-4 flex items-center justify-center">
+                  {selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)}
+                </span>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Filtros Globais */}
@@ -630,7 +637,60 @@ const Reports = () => {
           </TabsList>
 
           <TabsContent value="monthly" className="space-y-4">
-            {monthlyData.length === 0 ? (
+            {/* Realizado vs Planejado side-by-side for "todos" mode */}
+            {statusView === "todos" ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Realizado column */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-success flex items-center gap-1">✅ Realizado</h4>
+                  {monthlyData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum dado.</p>
+                  ) : monthlyData.map((data) => (
+                    <Card key={data.month} className="bg-gradient-card">
+                      <CardHeader className="pb-1 pt-3 px-4">
+                        <CardTitle className="flex items-center justify-between text-sm">
+                          <span>{new Date(data.month + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</span>
+                          <span className={`font-bold ${data.balance >= 0 ? "text-success" : "text-destructive"}`}>
+                            {formatCurrency(data.balance)}
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-4 pb-3">
+                        <div className="flex gap-4 text-xs">
+                          <span className="text-success">+{formatCurrency(data.income)}</span>
+                          <span className="text-destructive">-{formatCurrency(data.expense)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                {/* Planejado column */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-warning flex items-center gap-1">⏳ Planejado</h4>
+                  {monthlyDataPlanned.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum dado.</p>
+                  ) : monthlyDataPlanned.map((data) => (
+                    <Card key={data.month} className="bg-gradient-card border-dashed">
+                      <CardHeader className="pb-1 pt-3 px-4">
+                        <CardTitle className="flex items-center justify-between text-sm">
+                          <span>{new Date(data.month + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</span>
+                          <span className={`font-bold ${data.balance >= 0 ? "text-success" : "text-destructive"}`}>
+                            {formatCurrency(data.balance)}
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-4 pb-3">
+                        <div className="flex gap-4 text-xs">
+                          <span className="text-success">+{formatCurrency(data.income)}</span>
+                          <span className="text-destructive">-{formatCurrency(data.expense)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              monthlyData.length === 0 ? (
               <Card className="bg-gradient-card">
                 <CardContent className="py-12 text-center">
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -670,6 +730,7 @@ const Reports = () => {
                   </CardContent>
                 </Card>
               ))
+            )
             )}
           </TabsContent>
 

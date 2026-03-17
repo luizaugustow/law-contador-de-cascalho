@@ -40,6 +40,7 @@ type FormData = {
   observations: string;
   tag_ids: string[];
   destination_account_id: string;
+  status: string;
 };
 
 type TransactionFormProps = {
@@ -100,6 +101,22 @@ const TransactionForm = ({
             <SelectItem value="receita">Receita</SelectItem>
             <SelectItem value="despesa">Despesa</SelectItem>
             <SelectItem value="transferencia">Transferência</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="status">Status</Label>
+        <Select
+          value={formData.status}
+          onValueChange={(value) => setFormData({ ...formData, status: value })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pendente">⏳ Pendente</SelectItem>
+            <SelectItem value="realizado">✅ Realizado</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -213,10 +230,7 @@ const TransactionForm = ({
             value="select-tag"
             onValueChange={(value) => {
               if (value !== "select-tag" && !formData.tag_ids.includes(value)) {
-                setFormData({ 
-                  ...formData, 
-                  tag_ids: [...formData.tag_ids, value] 
-                });
+                setFormData({ ...formData, tag_ids: [...formData.tag_ids, value] });
               }
             }}
           >
@@ -232,10 +246,7 @@ const TransactionForm = ({
                 .map((tag) => (
                   <SelectItem key={tag.id} value={tag.id}>
                     <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: tag.color }} />
                       {tag.name}
                     </div>
                   </SelectItem>
@@ -251,21 +262,13 @@ const TransactionForm = ({
                 return (
                   <Badge
                     key={tagId}
-                    style={{ 
-                      backgroundColor: tag.color,
-                      color: '#fff'
-                    }}
+                    style={{ backgroundColor: tag.color, color: '#fff' }}
                     className="gap-1"
                   >
                     {tag.name}
                     <button
                       type="button"
-                      onClick={() => {
-                        setFormData({
-                          ...formData,
-                          tag_ids: formData.tag_ids.filter(id => id !== tagId)
-                        });
-                      }}
+                      onClick={() => setFormData({ ...formData, tag_ids: formData.tag_ids.filter(id => id !== tagId) })}
                       className="ml-1 hover:opacity-70"
                     >
                       <X className="h-3 w-3" />
