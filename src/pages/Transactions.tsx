@@ -252,18 +252,18 @@ const Transactions = () => {
   const handleToggleStatus = async (transaction: Transaction) => {
     const newStatus = transaction.status === 'pendente' ? 'realizado' : 'pendente';
     try {
-      // If transfer, also update the pair
-      const updates: Promise<any>[] = [
-        supabase.from("transactions").update({ status: newStatus }).eq("id", transaction.id)
-      ];
+      const { error: e1 } = await supabase
+        .from("transactions")
+        .update({ status: newStatus })
+        .eq("id", transaction.id);
+      if (e1) throw e1;
+
       if (transaction.type === "transferencia" && transaction.transfer_pair_id) {
-        updates.push(
-          supabase.from("transactions").update({ status: newStatus }).eq("id", transaction.transfer_pair_id)
-        );
-      }
-      const results = await Promise.all(updates);
-      for (const r of results) {
-        if (r.error) throw r.error;
+        const { error: e2 } = await supabase
+          .from("transactions")
+          .update({ status: newStatus })
+          .eq("id", transaction.transfer_pair_id);
+        if (e2) throw e2;
       }
       setTransactions(prev =>
         prev.map(t =>
