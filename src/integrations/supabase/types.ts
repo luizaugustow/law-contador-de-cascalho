@@ -216,6 +216,7 @@ export type Database = {
           destination_account_id: string | null
           id: string
           observations: string | null
+          status: string
           subcategory_id: string | null
           transfer_pair_id: string | null
           type: string
@@ -232,6 +233,7 @@ export type Database = {
           destination_account_id?: string | null
           id?: string
           observations?: string | null
+          status?: string
           subcategory_id?: string | null
           transfer_pair_id?: string | null
           type: string
@@ -248,6 +250,7 @@ export type Database = {
           destination_account_id?: string | null
           id?: string
           observations?: string | null
+          status?: string
           subcategory_id?: string | null
           transfer_pair_id?: string | null
           type?: string
