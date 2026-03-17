@@ -120,37 +120,29 @@ const Reports = () => {
 
       if (allTransError) throw allTransError;
 
-      // Fetch transactions with optional filters (for monthly data, dashboards, etc.)
-      let transQuery = supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", user.id);
-      
-      if (selectedAccounts.length > 0) {
-        transQuery = transQuery.or(
-          `account_id.in.(${selectedAccounts.join(',')}),destination_account_id.in.(${selectedAccounts.join(',')})`
-        );
-      }
-      
-      if (selectedCategories.length > 0) {
-        transQuery = transQuery.in("category_id", selectedCategories);
-      }
+      // Build base query with common filters
+      const buildTransQuery = (statusFilter?: string) => {
+        let q = supabase.from("transactions").select("*").eq("user_id", user.id);
+        if (selectedAccounts.length > 0) {
+          q = q.or(`account_id.in.(${selectedAccounts.join(',')}),destination_account_id.in.(${selectedAccounts.join(',')})`);
+        }
+        if (selectedCategories.length > 0) q = q.in("category_id", selectedCategories);
+        if (selectedSubcategories.length > 0) q = q.in("subcategory_id", selectedSubcategories);
+        if (startDate) q = q.gte("date", startDate);
+        if (endDate) q = q.lte("date", endDate);
+        if (statusFilter && statusFilter !== "todos") q = q.eq("status", statusFilter);
+        return q;
+      };
 
-      if (selectedSubcategories.length > 0) {
-        transQuery = transQuery.in("subcategory_id", selectedSubcategories);
-      }
+      const [transRes, transPlannedRes] = await Promise.all([
+        buildTransQuery(statusView === "todos" ? undefined : statusView),
+        buildTransQuery("pendente"),
+      ]);
 
-      if (startDate) {
-        transQuery = transQuery.gte("date", startDate);
-      }
+      const transactions = transRes.data || [];
+      const transPlanned = transPlannedRes.data || [];
 
-      if (endDate) {
-        transQuery = transQuery.lte("date", endDate);
-      }
-
-      const { data: transactions, error: transError } = await transQuery;
-
-      if (transError) throw transError;
+      if (transRes.error) throw transRes.error;
 
       // Fetch tags and transaction_tags
       const { data: tagsData } = await supabase
@@ -164,48 +156,41 @@ const Reports = () => {
         .from("transaction_tags")
         .select("transaction_id, tag_id");
 
-      // Filtrar transações por tags se houver seleção
-      let filteredTransactions = transactions || [];
-      if (selectedTags.length > 0) {
-        const transactionIdsWithSelectedTags = new Set(
+      // Helper: filter by tags
+      const applyTagFilter = (list: typeof transactions) => {
+        if (selectedTags.length === 0) return list;
+        const ids = new Set(
           (transactionTagsData || [])
             .filter(tt => selectedTags.includes(tt.tag_id))
             .map(tt => tt.transaction_id)
         );
-        filteredTransactions = filteredTransactions.filter(t =>
-          transactionIdsWithSelectedTags.has(t.id)
-        );
-      }
+        return list.filter(t => ids.has(t.id));
+      };
 
-      // Calculate monthly data
-      const monthlyMap = new Map<string, { income: number; expense: number }>();
-      
-      filteredTransactions.forEach((t) => {
-        // Transferências não contam como receita ou despesa nos relatórios
-        if (t.type === "transferencia") return;
-        
-        const month = t.date.slice(0, 7);
-        if (!monthlyMap.has(month)) {
-          monthlyMap.set(month, { income: 0, expense: 0 });
-        }
-        const data = monthlyMap.get(month)!;
-        if (t.type === "receita") {
-          data.income += Number(t.amount);
-        } else if (t.type === "despesa") {
-          data.expense += Number(t.amount);
-        }
-      });
+      let filteredTransactions = applyTagFilter(transactions);
+      let filteredPlanned = applyTagFilter(transPlanned);
 
-      const monthly = Array.from(monthlyMap.entries())
-        .map(([month, data]) => ({
-          month,
-          income: data.income,
-          expense: data.expense,
-          balance: data.income - data.expense,
-        }))
-        .sort((a, b) => b.month.localeCompare(a.month));
+      // Helper to build monthly aggregate
+      const buildMonthly = (list: typeof filteredTransactions) => {
+        const map = new Map<string, { income: number; expense: number }>();
+        list.forEach((t) => {
+          if (t.type === "transferencia") return;
+          const month = t.date.slice(0, 7);
+          if (!map.has(month)) map.set(month, { income: 0, expense: 0 });
+          const d = map.get(month)!;
+          if (t.type === "receita") d.income += Number(t.amount);
+          else if (t.type === "despesa") d.expense += Number(t.amount);
+        });
+        return Array.from(map.entries())
+          .map(([month, data]) => ({ month, income: data.income, expense: data.expense, balance: data.income - data.expense }))
+          .sort((a, b) => b.month.localeCompare(a.month));
+      };
+
+      const monthly = buildMonthly(filteredTransactions);
+      const monthlyPlanned = buildMonthly(filteredPlanned);
 
       setMonthlyData(monthly);
+      setMonthlyDataPlanned(monthlyPlanned);
 
       // === CONCILIAÇÃO BANCÁRIA ===
       // Usa TODAS as transações para calcular saldos corretos, filtro apenas limita exibição
