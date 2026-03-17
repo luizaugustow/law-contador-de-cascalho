@@ -496,7 +496,7 @@ const Reports = () => {
 
   return (
     <Layout>
-      <div className="space-y-8 animate-fade-in">
+      <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Relatórios</h2>
@@ -505,19 +505,38 @@ const Reports = () => {
             </p>
           </div>
 
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => setShowFilters(v => !v)}
-          >
-            <Filter className="h-4 w-4" />
-            Filtros
-            {(selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)) > 0 && (
-              <span className="ml-1 bg-primary text-primary-foreground rounded-full text-xs w-4 h-4 flex items-center justify-center">
-                {selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)}
-              </span>
-            )}
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            {/* Realizado / Planejado / Todos toggle */}
+            <div className="flex rounded-md border border-border overflow-hidden">
+              {(["realizado", "planejado", "todos"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setStatusView(v)}
+                  className={`px-3 py-1.5 text-sm capitalize transition-colors ${
+                    statusView === v
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {v === "realizado" ? "✅ Realizado" : v === "planejado" ? "⏳ Planejado" : "Todos"}
+                </button>
+              ))}
+            </div>
+
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setShowFilters(v => !v)}
+            >
+              <Filter className="h-4 w-4" />
+              Filtros
+              {(selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)) > 0 && (
+                <span className="ml-1 bg-primary text-primary-foreground rounded-full text-xs w-4 h-4 flex items-center justify-center">
+                  {selectedAccounts.length + selectedCategories.length + selectedSubcategories.length + selectedTags.length + (startDate ? 1 : 0) + (endDate ? 1 : 0)}
+                </span>
+              )}
+            </Button>
+          </div>
         </div>
 
         {/* Filtros Globais */}
@@ -618,7 +637,60 @@ const Reports = () => {
           </TabsList>
 
           <TabsContent value="monthly" className="space-y-4">
-            {monthlyData.length === 0 ? (
+            {/* Realizado vs Planejado side-by-side for "todos" mode */}
+            {statusView === "todos" ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Realizado column */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-success flex items-center gap-1">✅ Realizado</h4>
+                  {monthlyData.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum dado.</p>
+                  ) : monthlyData.map((data) => (
+                    <Card key={data.month} className="bg-gradient-card">
+                      <CardHeader className="pb-1 pt-3 px-4">
+                        <CardTitle className="flex items-center justify-between text-sm">
+                          <span>{new Date(data.month + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</span>
+                          <span className={`font-bold ${data.balance >= 0 ? "text-success" : "text-destructive"}`}>
+                            {formatCurrency(data.balance)}
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-4 pb-3">
+                        <div className="flex gap-4 text-xs">
+                          <span className="text-success">+{formatCurrency(data.income)}</span>
+                          <span className="text-destructive">-{formatCurrency(data.expense)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                {/* Planejado column */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-warning flex items-center gap-1">⏳ Planejado</h4>
+                  {monthlyDataPlanned.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum dado.</p>
+                  ) : monthlyDataPlanned.map((data) => (
+                    <Card key={data.month} className="bg-gradient-card border-dashed">
+                      <CardHeader className="pb-1 pt-3 px-4">
+                        <CardTitle className="flex items-center justify-between text-sm">
+                          <span>{new Date(data.month + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</span>
+                          <span className={`font-bold ${data.balance >= 0 ? "text-success" : "text-destructive"}`}>
+                            {formatCurrency(data.balance)}
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="px-4 pb-3">
+                        <div className="flex gap-4 text-xs">
+                          <span className="text-success">+{formatCurrency(data.income)}</span>
+                          <span className="text-destructive">-{formatCurrency(data.expense)}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              monthlyData.length === 0 ? (
               <Card className="bg-gradient-card">
                 <CardContent className="py-12 text-center">
                   <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
