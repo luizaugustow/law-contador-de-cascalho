@@ -57,6 +57,7 @@ type Account = {
 
 const Reports = () => {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const [monthlyDataPlanned, setMonthlyDataPlanned] = useState<MonthlyData[]>([]);
   const [dailyBalances, setDailyBalances] = useState<DailyBalance[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -73,6 +74,8 @@ const Reports = () => {
   const [endDate, setEndDate] = useState<string>("");
   const [open, setOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  // "realizado" | "planejado" | "todos"
+  const [statusView, setStatusView] = useState<"realizado" | "planejado" | "todos">("realizado");
   const [formData, setFormData] = useState({
     category_id: "",
     amount: "",
@@ -86,7 +89,7 @@ const Reports = () => {
   useEffect(() => {
     checkAuth();
     fetchData();
-  }, [selectedMonth, selectedAccounts, selectedCategories, selectedSubcategories, selectedTags, startDate, endDate]);
+  }, [selectedMonth, selectedAccounts, selectedCategories, selectedSubcategories, selectedTags, startDate, endDate, statusView]);
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
