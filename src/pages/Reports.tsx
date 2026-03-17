@@ -731,7 +731,7 @@ const Reports = () => {
                 </Card>
               ))
             )}
-          </TabsContent>
+            </TabsContent>
 
           <TabsContent value="daily" className="space-y-4">
             <div className="space-y-4">
