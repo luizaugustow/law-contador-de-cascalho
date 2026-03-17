@@ -193,7 +193,12 @@ const Reports = () => {
       setMonthlyDataPlanned(monthlyPlanned);
 
       // === CONCILIAÇÃO BANCÁRIA ===
-      // Usa TODAS as transações para calcular saldos corretos, filtro apenas limita exibição
+      // Usa TODAS as transações (sem filtro de status) para calcular saldos corretos
+      const { data: allTransactions } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", user.id);
+
       const sortedAllTransactions = [...(allTransactions || [])].sort((a, b) => a.date.localeCompare(b.date));
 
       // Mapa de saldo acumulado por conta
