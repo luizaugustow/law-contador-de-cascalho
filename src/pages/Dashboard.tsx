@@ -202,54 +202,54 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           <Card className="bg-gradient-card shadow-md hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Saldo Total</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium">Saldo Total</CardTitle>
+              <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalBalance)}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Todas as contas (realizado)
+            <CardContent className="px-3 pb-3">
+              <div className="text-lg sm:text-2xl font-bold">{formatCurrency(totalBalance)}</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Realizado
               </p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-card shadow-md hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Total de Contas</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium">Contas</CardTitle>
+              <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{accounts.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Contas ativas
+            <CardContent className="px-3 pb-3">
+              <div className="text-lg sm:text-2xl font-bold">{accounts.length}</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Ativas
               </p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-card shadow-md hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Receitas</CardTitle>
-              <TrendingUp className="h-4 w-4 text-success" />
+            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium">Receitas</CardTitle>
+              <TrendingUp className="h-3.5 w-3.5 text-success" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-success">R$ 0,00</div>
-              <p className="text-xs text-muted-foreground mt-1">
+            <CardContent className="px-3 pb-3">
+              <div className="text-lg sm:text-2xl font-bold text-success">R$ 0,00</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Este mês
               </p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-card shadow-md hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Despesas</CardTitle>
-              <TrendingDown className="h-4 w-4 text-destructive" />
+            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3 px-3">
+              <CardTitle className="text-xs font-medium">Despesas</CardTitle>
+              <TrendingDown className="h-3.5 w-3.5 text-destructive" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-destructive">R$ 0,00</div>
-              <p className="text-xs text-muted-foreground mt-1">
+            <CardContent className="px-3 pb-3">
+              <div className="text-lg sm:text-2xl font-bold text-destructive">R$ 0,00</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Este mês
               </p>
             </CardContent>
