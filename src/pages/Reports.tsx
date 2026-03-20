@@ -629,11 +629,11 @@ const Reports = () => {
         )}
 
         <Tabs defaultValue="monthly" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="monthly">Saldo Mensal</TabsTrigger>
-            <TabsTrigger value="daily">Conciliação Bancária</TabsTrigger>
-            <TabsTrigger value="budgets">Orçamentos</TabsTrigger>
-            <TabsTrigger value="dashboards">Dashboards</TabsTrigger>
+          <TabsList className="w-full grid grid-cols-4">
+            <TabsTrigger value="monthly" className="text-xs sm:text-sm">Mensal</TabsTrigger>
+            <TabsTrigger value="daily" className="text-xs sm:text-sm">Bancária</TabsTrigger>
+            <TabsTrigger value="budgets" className="text-xs sm:text-sm">Orçamentos</TabsTrigger>
+            <TabsTrigger value="dashboards" className="text-xs sm:text-sm">Dashboards</TabsTrigger>
           </TabsList>
 
           <TabsContent value="monthly" className="space-y-4">
