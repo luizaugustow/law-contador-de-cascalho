@@ -1,11 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Tag, Wallet, LogOut, ArrowUpCircle, BarChart3, Menu, X } from "lucide-react";
+import { Home, Tag, Wallet, LogOut, ArrowUpCircle, BarChart3, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
@@ -28,24 +29,25 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const navItems = [
     { path: "/", icon: Home, label: "Visão Geral" },
-    { path: "/categorias", icon: Tag, label: "Categorias e Tags" },
-    { path: "/contas", icon: Wallet, label: "Contas" },
     { path: "/transacoes", icon: ArrowUpCircle, label: "Transações" },
     { path: "/relatorios", icon: BarChart3, label: "Relatórios" },
+    { path: "/contas", icon: Wallet, label: "Contas" },
+    { path: "/categorias", icon: Tag, label: "Categorias" },
   ];
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Top navbar */}
       <nav className="border-b bg-card shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-lg sm:text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                Controle Financeiro
-              </h1>
-              
+          <div className="flex h-14 items-center justify-between">
+            <h1 className="text-base sm:text-lg font-bold bg-gradient-primary bg-clip-text text-transparent">
+              Controle Financeiro
+            </h1>
+
+            <div className="flex items-center gap-2">
               {/* Desktop Navigation */}
-              <div className="hidden lg:flex gap-2">
+              <div className="hidden lg:flex gap-1">
                 {navItems.map((item) => (
                   <Link key={item.path} to={item.path}>
                     <Button
@@ -59,32 +61,30 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                   </Link>
                 ))}
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
               {/* Desktop Logout */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleLogout}
-                className="hidden sm:flex gap-2 text-muted-foreground hover:text-destructive"
+                className="hidden lg:flex gap-2 text-muted-foreground hover:text-destructive"
               >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden md:inline">Sair</span>
+                <span className="hidden xl:inline">Sair</span>
               </Button>
 
-              {/* Mobile Menu */}
+              {/* Mobile Hamburger Menu (extra items + logout) */}
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild className="lg:hidden">
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-64">
-                  <div className="flex flex-col gap-4 mt-8">
+                  <div className="flex flex-col gap-3 mt-8">
                     {navItems.map((item) => (
-                      <Link 
-                        key={item.path} 
+                      <Link
+                        key={item.path}
                         to={item.path}
                         onClick={() => setMobileMenuOpen(false)}
                       >
@@ -97,7 +97,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                         </Button>
                       </Link>
                     ))}
-                    <div className="border-t pt-4">
+                    <div className="border-t pt-3">
                       <Button
                         variant="ghost"
                         onClick={handleLogout}
@@ -114,7 +114,35 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </div>
       </nav>
-      <main className="container mx-auto px-4 py-4 sm:py-8">{children}</main>
+
+      {/* Main content — extra bottom padding on mobile for bottom nav */}
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 pb-24 lg:pb-6">
+        {children}
+      </main>
+
+      {/* Bottom Navigation Bar — mobile only */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-50 bg-card border-t border-border">
+        <div className="flex items-stretch h-16">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
+                  isActive
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <item.icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
+                <span className="leading-none">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 };

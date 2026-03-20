@@ -670,7 +670,7 @@ const Transactions = () => {
           </Card>
         )}
 
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {transactions.length === 0 ? (
             <Card className="bg-gradient-card">
               <CardContent className="py-12 text-center">
@@ -684,55 +684,208 @@ const Transactions = () => {
             transactions.map((transaction) => (
               <div
                 key={transaction.id}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors ${
+                className={`rounded-lg border transition-colors ${
                   transaction.status === 'pendente'
                     ? 'bg-muted/20 border-dashed border-border/60 opacity-80'
                     : 'bg-card border-border hover:bg-muted/40'
                 }`}
               >
-                {/* Status toggle */}
-                <button
-                  onClick={() => handleToggleStatus(transaction)}
-                  className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                  title={transaction.status === 'pendente' ? 'Marcar como realizado' : 'Marcar como pendente'}
-                >
-                  {transaction.status === 'pendente' ? (
-                    <Clock className="h-4 w-4 text-warning" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                  )}
-                </button>
+                {/* Layout Desktop: linha única */}
+                <div className="hidden sm:flex items-center gap-3 px-3 py-2">
+                  {/* Status toggle */}
+                  <button
+                    onClick={() => handleToggleStatus(transaction)}
+                    className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                    title={transaction.status === 'pendente' ? 'Marcar como realizado' : 'Marcar como pendente'}
+                  >
+                    {transaction.status === 'pendente' ? (
+                      <Clock className="h-4 w-4 text-warning" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 text-success" />
+                    )}
+                  </button>
 
-                {/* Ícone tipo */}
-                <div className="flex-shrink-0">
-                  {transaction.type === "receita" ? (
-                    <ArrowUpCircle className="h-5 w-5 text-success" />
-                  ) : transaction.type === "transferencia" ? (
-                    <div className="flex items-center">
-                      <ArrowDownCircle className="h-4 w-4 text-primary" />
-                      <ArrowUpCircle className="h-4 w-4 text-primary -ml-1" />
-                    </div>
-                  ) : (
-                    <ArrowDownCircle className="h-5 w-5 text-destructive" />
-                  )}
+                  {/* Ícone tipo */}
+                  <div className="flex-shrink-0">
+                    {transaction.type === "receita" ? (
+                      <ArrowUpCircle className="h-5 w-5 text-success" />
+                    ) : transaction.type === "transferencia" ? (
+                      <div className="flex items-center">
+                        <ArrowDownCircle className="h-4 w-4 text-primary" />
+                        <ArrowUpCircle className="h-4 w-4 text-primary -ml-1" />
+                      </div>
+                    ) : (
+                      <ArrowDownCircle className="h-5 w-5 text-destructive" />
+                    )}
+                  </div>
+
+                  {/* Data */}
+                  <span className="text-xs text-muted-foreground w-16 flex-shrink-0">
+                    {transaction.date.split('-').reverse().join('/')}
+                  </span>
+
+                  {/* Descrição + tags */}
+                  <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm truncate">{transaction.description}</span>
+                    {transaction.status === 'pendente' && (
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 border-warning text-warning">
+                        Pendente
+                      </Badge>
+                    )}
+                    {transaction.tags && transaction.tags.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        {transaction.tags.map(tag => (
+                          <Badge
+                            key={tag.id}
+                            style={{ backgroundColor: tag.color, color: '#fff' }}
+                            className="text-xs px-1.5 py-0"
+                          >
+                            {tag.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Conta / categoria */}
+                  <div className="hidden md:flex flex-col items-end text-xs text-muted-foreground flex-shrink-0 max-w-[160px]">
+                    {transaction.type === "transferencia" ? (
+                      <span className="truncate">
+                        {transaction.isTransferCredit
+                          ? getAccountName(transaction.destination_account_id || "")
+                          : getAccountName(transaction.account_id)}
+                        {" → "}
+                        {transaction.isTransferCredit
+                          ? getAccountName(transaction.account_id)
+                          : getAccountName(transaction.destination_account_id || "")}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="truncate">{getAccountName(transaction.account_id)}</span>
+                        <span className="truncate flex items-center gap-0.5">
+                          {getCategoryEmoji(transaction.category_id) && (
+                            <span>{getCategoryEmoji(transaction.category_id)}</span>
+                          )}
+                          {getCategoryName(transaction.category_id)}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Valor */}
+                  <span className={`text-sm font-semibold flex-shrink-0 w-28 text-right ${
+                    transaction.type === "receita" ? "text-success" :
+                    transaction.type === "transferencia" ? "text-primary" :
+                    "text-destructive"
+                  }`}>
+                    {transaction.type === "receita" ? "+" : transaction.type === "transferencia" ? "" : "-"}
+                    {formatCurrency(transaction.amount)}
+                  </span>
+
+                  {/* Ações */}
+                  <div className="flex gap-1 flex-shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => handleEdit(transaction)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => handleDelete(transaction.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
 
-                {/* Data */}
-                <span className="text-xs text-muted-foreground w-16 flex-shrink-0">
-                  {transaction.date.split('-').reverse().join('/')}
-                </span>
+                {/* Layout Mobile: card expandido */}
+                <div className="sm:hidden px-3 py-2.5">
+                  {/* Linha 1: status + ícone + data + valor */}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <button
+                      onClick={() => handleToggleStatus(transaction)}
+                      className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                      title={transaction.status === 'pendente' ? 'Marcar como realizado' : 'Marcar como pendente'}
+                    >
+                      {transaction.status === 'pendente' ? (
+                        <Clock className="h-4 w-4 text-warning" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 text-success" />
+                      )}
+                    </button>
 
-                {/* Descrição + tags */}
-                <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm truncate">{transaction.description}</span>
-                  {transaction.status === 'pendente' && (
-                    <Badge variant="outline" className="text-xs px-1.5 py-0 border-warning text-warning">
-                      Pendente
-                    </Badge>
-                  )}
-                  {transaction.tags && transaction.tags.length > 0 && (
+                    <div className="flex-shrink-0">
+                      {transaction.type === "receita" ? (
+                        <ArrowUpCircle className="h-4 w-4 text-success" />
+                      ) : transaction.type === "transferencia" ? (
+                        <div className="flex items-center">
+                          <ArrowDownCircle className="h-3.5 w-3.5 text-primary" />
+                          <ArrowUpCircle className="h-3.5 w-3.5 text-primary -ml-0.5" />
+                        </div>
+                      ) : (
+                        <ArrowDownCircle className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+
+                    <span className="text-xs text-muted-foreground flex-shrink-0">
+                      {transaction.date.split('-').reverse().join('/')}
+                    </span>
+
+                    <span className={`text-sm font-bold ml-auto flex-shrink-0 ${
+                      transaction.type === "receita" ? "text-success" :
+                      transaction.type === "transferencia" ? "text-primary" :
+                      "text-destructive"
+                    }`}>
+                      {transaction.type === "receita" ? "+" : transaction.type === "transferencia" ? "" : "-"}
+                      {formatCurrency(transaction.amount)}
+                    </span>
+                  </div>
+
+                  {/* Linha 2: descrição */}
+                  <p className="font-medium text-sm mb-1 leading-tight">{transaction.description}</p>
+
+                  {/* Linha 3: conta + categoria */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5 flex-wrap">
+                    {transaction.type === "transferencia" ? (
+                      <span>
+                        {transaction.isTransferCredit
+                          ? getAccountName(transaction.destination_account_id || "")
+                          : getAccountName(transaction.account_id)}
+                        {" → "}
+                        {transaction.isTransferCredit
+                          ? getAccountName(transaction.account_id)
+                          : getAccountName(transaction.destination_account_id || "")}
+                      </span>
+                    ) : (
+                      <>
+                        <span>{getAccountName(transaction.account_id)}</span>
+                        {getCategoryName(transaction.category_id) !== "N/A" && (
+                          <>
+                            <span className="text-border">•</span>
+                            <span>
+                              {getCategoryEmoji(transaction.category_id) && `${getCategoryEmoji(transaction.category_id)} `}
+                              {getCategoryName(transaction.category_id)}
+                            </span>
+                          </>
+                        )}
+                      </>
+                    )}
+                    {transaction.status === 'pendente' && (
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 border-warning text-warning">
+                        Pendente
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Linha 4: tags + ações */}
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex gap-1 flex-wrap">
-                      {transaction.tags.map(tag => (
+                      {transaction.tags && transaction.tags.map(tag => (
                         <Badge
                           key={tag.id}
                           style={{ backgroundColor: tag.color, color: '#fff' }}
@@ -742,62 +895,25 @@ const Transactions = () => {
                         </Badge>
                       ))}
                     </div>
-                  )}
-                </div>
-
-                {/* Conta / categoria */}
-                <div className="hidden md:flex flex-col items-end text-xs text-muted-foreground flex-shrink-0 max-w-[160px]">
-                  {transaction.type === "transferencia" ? (
-                    <span className="truncate">
-                      {transaction.isTransferCredit
-                        ? getAccountName(transaction.destination_account_id || "")
-                        : getAccountName(transaction.account_id)}
-                      {" → "}
-                      {transaction.isTransferCredit
-                        ? getAccountName(transaction.account_id)
-                        : getAccountName(transaction.destination_account_id || "")}
-                    </span>
-                  ) : (
-                    <>
-                      <span className="truncate">{getAccountName(transaction.account_id)}</span>
-                      <span className="truncate flex items-center gap-0.5">
-                        {getCategoryEmoji(transaction.category_id) && (
-                          <span>{getCategoryEmoji(transaction.category_id)}</span>
-                        )}
-                        {getCategoryName(transaction.category_id)}
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {/* Valor */}
-                <span className={`text-sm font-semibold flex-shrink-0 w-28 text-right ${
-                  transaction.type === "receita" ? "text-success" :
-                  transaction.type === "transferencia" ? "text-primary" :
-                  "text-destructive"
-                }`}>
-                  {transaction.type === "receita" ? "+" : transaction.type === "transferencia" ? "" : "-"}
-                  {formatCurrency(transaction.amount)}
-                </span>
-
-                {/* Ações */}
-                <div className="flex gap-1 flex-shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => handleEdit(transaction)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => handleDelete(transaction.id)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleEdit(transaction)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleDelete(transaction.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))
