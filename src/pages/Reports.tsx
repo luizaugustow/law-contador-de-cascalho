@@ -505,14 +505,14 @@ const Reports = () => {
             </p>
           </div>
 
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {/* Realizado / Planejado / Todos toggle */}
-            <div className="flex rounded-md border border-border overflow-hidden">
+            <div className="flex rounded-md border border-border overflow-hidden w-full sm:w-auto">
               {(["realizado", "planejado", "todos"] as const).map((v) => (
                 <button
                   key={v}
                   onClick={() => setStatusView(v)}
-                  className={`px-3 py-1.5 text-sm capitalize transition-colors ${
+                  className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 text-xs sm:text-sm capitalize transition-colors ${
                     statusView === v
                       ? "bg-primary text-primary-foreground"
                       : "bg-background text-muted-foreground hover:bg-muted"
@@ -525,7 +525,7 @@ const Reports = () => {
 
             <Button
               variant="outline"
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
               onClick={() => setShowFilters(v => !v)}
             >
               <Filter className="h-4 w-4" />
