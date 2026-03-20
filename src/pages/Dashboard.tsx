@@ -309,23 +309,27 @@ const Dashboard = () => {
                   {upcomingPending.map(t => (
                     <div
                       key={t.id}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg bg-card border border-dashed border-border/60"
+                      className="rounded-lg bg-card border border-dashed border-border/60 px-3 py-2"
                     >
-                      {t.type === "receita" ? (
-                        <ArrowUpCircle className="h-4 w-4 text-success flex-shrink-0" />
-                      ) : (
-                        <ArrowDownCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                      )}
-                      <span className="text-xs text-muted-foreground w-16 flex-shrink-0">
-                        {t.date.split('-').reverse().join('/')}
-                      </span>
-                      <span className="flex-1 text-sm font-medium truncate">{t.description}</span>
-                      <span className="text-xs text-muted-foreground hidden sm:block flex-shrink-0">
-                        {accountNames.get(t.account_id) || ""}
-                      </span>
-                      <span className={`text-sm font-semibold flex-shrink-0 ${t.type === "receita" ? "text-success" : "text-destructive"}`}>
-                        {t.type === "receita" ? "+" : "-"}{formatCurrency(t.amount)}
-                      </span>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        {t.type === "receita" ? (
+                          <ArrowUpCircle className="h-3.5 w-3.5 text-success flex-shrink-0" />
+                        ) : (
+                          <ArrowDownCircle className="h-3.5 w-3.5 text-destructive flex-shrink-0" />
+                        )}
+                        <span className="text-xs text-muted-foreground flex-shrink-0">
+                          {t.date.split('-').reverse().join('/')}
+                        </span>
+                        <span className={`text-sm font-semibold ml-auto flex-shrink-0 ${t.type === "receita" ? "text-success" : "text-destructive"}`}>
+                          {t.type === "receita" ? "+" : "-"}{formatCurrency(t.amount)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium flex-1 min-w-0">{t.description}</span>
+                        <span className="text-xs text-muted-foreground flex-shrink-0 truncate max-w-[100px]">
+                          {accountNames.get(t.account_id) || ""}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
