@@ -1110,6 +1110,18 @@ const Reports = () => {
           </TabsContent>
 
           <TabsContent value="dashboards" className="space-y-6">
+            {/* Month selector */}
+            <div className="flex items-center gap-2">
+              <Label htmlFor="dashboard-month" className="text-sm whitespace-nowrap">Mês de referência:</Label>
+              <Input
+                id="dashboard-month"
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-44"
+              />
+            </div>
+
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               <Card className="bg-gradient-card">
