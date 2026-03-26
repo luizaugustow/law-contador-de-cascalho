@@ -413,6 +413,108 @@ const Reports = () => {
       }) || [];
 
       setBudgets(budgetsWithBalance);
+
+      // === DASHBOARD DATA COMPUTATIONS ===
+      const CATEGORY_COLORS = [
+        "hsl(220, 70%, 50%)", "hsl(160, 60%, 45%)", "hsl(340, 65%, 50%)", 
+        "hsl(45, 80%, 50%)", "hsl(280, 60%, 55%)", "hsl(15, 75%, 50%)",
+        "hsl(190, 70%, 45%)", "hsl(100, 55%, 45%)", "hsl(250, 55%, 55%)",
+        "hsl(0, 65%, 50%)", "hsl(130, 50%, 40%)", "hsl(60, 70%, 48%)"
+      ];
+
+      // 1. Category expenses for the selected month (from ALL transactions, not just budgets)
+      const catExpMap = new Map<string, number>();
+      filteredTransactions
+        .filter(t => t.date.startsWith(selectedMonth) && t.type === "despesa" && t.category_id)
+        .forEach(t => {
+          const current = catExpMap.get(t.category_id!) || 0;
+          catExpMap.set(t.category_id!, current + Number(t.amount));
+        });
+      
+      const catExpenses: CategoryExpense[] = Array.from(catExpMap.entries())
+        .map(([catId, value], i) => {
+          const cat = categoriesData?.find(c => c.id === catId);
+          return { name: cat?.name || "Outros", value, emoji: cat?.emoji, color: CATEGORY_COLORS[i % CATEGORY_COLORS.length] };
+        })
+        .sort((a, b) => b.value - a.value);
+      setCategoryExpenses(catExpenses);
+
+      // 2. Patrimony evolution (cumulative balance over months)
+      const allMonthly = new Map<string, { income: number; expense: number }>();
+      (allTransactions || []).forEach(t => {
+        if (t.type === "transferencia" || t.status !== "realizado") return;
+        const month = t.date.slice(0, 7);
+        if (!allMonthly.has(month)) allMonthly.set(month, { income: 0, expense: 0 });
+        const d = allMonthly.get(month)!;
+        if (t.type === "receita") d.income += Number(t.amount);
+        else if (t.type === "despesa") d.expense += Number(t.amount);
+      });
+      
+      const sortedMonths = Array.from(allMonthly.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+      let cumulativePatrimony = accountsData?.reduce((s, a) => s + Number(a.balance), 0) || 0;
+      // We need to go backwards: start from initial balances and add monthly changes
+      // Actually, let's compute forward: start from total account balance minus all transaction effects
+      const totalTransEffect = sortedMonths.reduce((acc, [, d]) => acc + d.income - d.expense, 0);
+      let basePatrimony = cumulativePatrimony - totalTransEffect;
+      
+      const patrimony: PatrimonyPoint[] = sortedMonths.map(([month, d]) => {
+        basePatrimony += d.income - d.expense;
+        return { month, patrimony: basePatrimony, income: d.income, expense: d.expense };
+      });
+      setPatrimonyData(patrimony);
+
+      // 3. Moving average of expenses (3-month)
+      const expenseByMonth = sortedMonths.map(([month, d]) => ({ month, expense: d.expense }));
+      const movingAvg = expenseByMonth.map((item, i) => {
+        if (i < 2) return { ...item, avg3m: null };
+        const avg = (expenseByMonth[i].expense + expenseByMonth[i-1].expense + expenseByMonth[i-2].expense) / 3;
+        return { ...item, avg3m: avg };
+      });
+      setMovingAvgData(movingAvg);
+
+      // 4. Outliers: top 10 largest expenses of the selected month
+      const monthExpenses = filteredTransactions
+        .filter(t => t.date.startsWith(selectedMonth) && t.type === "despesa")
+        .sort((a, b) => Number(b.amount) - Number(a.amount))
+        .slice(0, 10)
+        .map(t => {
+          const cat = categoriesData?.find(c => c.id === t.category_id);
+          const acc = accountsData?.find(a => a.id === t.account_id);
+          return {
+            description: t.description,
+            amount: Number(t.amount),
+            date: t.date,
+            category_name: cat?.name || "Sem categoria",
+            account_name: acc?.name || "",
+          };
+        });
+      // Compute mean and stddev to flag true outliers
+      const allMonthExpenseAmounts = filteredTransactions
+        .filter(t => t.date.startsWith(selectedMonth) && t.type === "despesa")
+        .map(t => Number(t.amount));
+      const mean = allMonthExpenseAmounts.length > 0 ? allMonthExpenseAmounts.reduce((a, b) => a + b, 0) / allMonthExpenseAmounts.length : 0;
+      const stddev = allMonthExpenseAmounts.length > 1
+        ? Math.sqrt(allMonthExpenseAmounts.reduce((acc, v) => acc + (v - mean) ** 2, 0) / allMonthExpenseAmounts.length)
+        : 0;
+      // Mark outliers as those > mean + 1.5*stddev
+      setOutliers(monthExpenses.map(e => ({ ...e, isOutlier: e.amount > mean + 1.5 * stddev } as any)));
+
+      // 5. Account composition
+      const accComp: AccountComposition[] = (accountsData || []).map(a => ({
+        name: a.name,
+        balance: Number(a.balance),
+        type: (a as any).type || "corrente",
+      }));
+      setAccountComposition(accComp);
+
+      // 6. Budget comparison
+      const budgetComp = budgetsWithBalance.map(b => ({
+        category: b.category_name,
+        budget: b.amount,
+        actual: b.balance,
+        diff: b.balance - b.amount,
+      }));
+      setBudgetComparison(budgetComp);
     } catch (error: any) {
       toast({
         title: "Erro ao carregar dados",
