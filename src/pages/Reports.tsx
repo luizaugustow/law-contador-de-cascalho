@@ -112,6 +112,12 @@ const Reports = () => {
     month: new Date().toISOString().slice(0, 7),
   });
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [categoryExpenses, setCategoryExpenses] = useState<CategoryExpense[]>([]);
+  const [patrimonyData, setPatrimonyData] = useState<PatrimonyPoint[]>([]);
+  const [outliers, setOutliers] = useState<OutlierTransaction[]>([]);
+  const [accountComposition, setAccountComposition] = useState<AccountComposition[]>([]);
+  const [movingAvgData, setMovingAvgData] = useState<{ month: string; expense: number; avg3m: number | null }[]>([]);
+  const [budgetComparison, setBudgetComparison] = useState<{ category: string; budget: number; actual: number; diff: number }[]>([]);
 
   const navigate = useNavigate();
   const { toast } = useToast();
