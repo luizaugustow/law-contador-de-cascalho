@@ -54,6 +54,35 @@ type Account = {
   id: string;
   name: string;
   balance: number;
+  type?: string;
+};
+
+type CategoryExpense = {
+  name: string;
+  value: number;
+  emoji?: string;
+  color: string;
+};
+
+type PatrimonyPoint = {
+  month: string;
+  patrimony: number;
+  income: number;
+  expense: number;
+};
+
+type OutlierTransaction = {
+  description: string;
+  amount: number;
+  date: string;
+  category_name: string;
+  account_name: string;
+};
+
+type AccountComposition = {
+  name: string;
+  balance: number;
+  type: string;
 };
 
 const Reports = () => {
