@@ -1111,239 +1111,325 @@ const Reports = () => {
 
           <TabsContent value="dashboards" className="space-y-6">
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
               <Card className="bg-gradient-card">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Saldo Total</p>
-                      <p className="text-2xl font-bold">
-                        {formatCurrency(
-                          accounts.reduce((sum, acc) => sum + Number(acc.balance || 0), 0)
-                        )}
+                <CardContent className="pt-4 pb-4 px-4">
+                  <p className="text-xs text-muted-foreground">Patrimônio</p>
+                  <p className="text-lg md:text-2xl font-bold">
+                    {formatCurrency(patrimonyData.length > 0 ? patrimonyData[patrimonyData.length - 1].patrimony : 0)}
+                  </p>
+                  {patrimonyData.length >= 2 && (() => {
+                    const curr = patrimonyData[patrimonyData.length - 1].patrimony;
+                    const prev = patrimonyData[patrimonyData.length - 2].patrimony;
+                    const change = prev !== 0 ? ((curr - prev) / Math.abs(prev)) * 100 : 0;
+                    return (
+                      <p className={`text-xs flex items-center gap-1 ${change >= 0 ? "text-success" : "text-destructive"}`}>
+                        {change >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                        {Math.abs(change).toFixed(1)}% vs mês ant.
                       </p>
-                    </div>
-                    <TrendingUp className="h-8 w-8 text-success" />
-                  </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
 
               <Card className="bg-gradient-card">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Receitas do Mês</p>
-                      <p className="text-2xl font-bold text-success">
-                        {formatCurrency(
-                          monthlyData.find(m => m.month === selectedMonth)?.income || 0
-                        )}
-                      </p>
-                    </div>
-                    <TrendingUp className="h-8 w-8 text-success" />
-                  </div>
+                <CardContent className="pt-4 pb-4 px-4">
+                  <p className="text-xs text-muted-foreground">Receitas do Mês</p>
+                  <p className="text-lg md:text-2xl font-bold text-success">
+                    {formatCurrency(monthlyData.find(m => m.month === selectedMonth)?.income || 0)}
+                  </p>
                 </CardContent>
               </Card>
 
               <Card className="bg-gradient-card">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Despesas do Mês</p>
-                      <p className="text-2xl font-bold text-destructive">
-                        {formatCurrency(
-                          monthlyData.find(m => m.month === selectedMonth)?.expense || 0
-                        )}
-                      </p>
-                    </div>
-                    <TrendingDown className="h-8 w-8 text-destructive" />
-                  </div>
+                <CardContent className="pt-4 pb-4 px-4">
+                  <p className="text-xs text-muted-foreground">Despesas do Mês</p>
+                  <p className="text-lg md:text-2xl font-bold text-destructive">
+                    {formatCurrency(monthlyData.find(m => m.month === selectedMonth)?.expense || 0)}
+                  </p>
                 </CardContent>
               </Card>
 
               <Card className="bg-gradient-card">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Taxa de Poupança</p>
-                      <p className="text-2xl font-bold">
-                        {(() => {
-                          const currentMonth = monthlyData.find(m => m.month === selectedMonth);
-                          const savingsRate = currentMonth?.income 
-                            ? ((currentMonth.income - currentMonth.expense) / currentMonth.income) * 100
-                            : 0;
-                          return `${savingsRate.toFixed(1)}%`;
-                        })()}
-                      </p>
-                    </div>
-                    <Target className="h-8 w-8 text-primary" />
-                  </div>
+                <CardContent className="pt-4 pb-4 px-4">
+                  <p className="text-xs text-muted-foreground">Taxa de Poupança</p>
+                  <p className="text-lg md:text-2xl font-bold">
+                    {(() => {
+                      const cm = monthlyData.find(m => m.month === selectedMonth);
+                      const rate = cm?.income ? ((cm.income - cm.expense) / cm.income) * 100 : 0;
+                      return `${rate.toFixed(1)}%`;
+                    })()}
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Charts Grid */}
+            {/* Row 1: Patrimony Evolution + Income vs Expense */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Evolução Patrimonial */}
+              {/* Evolução Patrimonial (Area Chart) */}
               <Card className="bg-gradient-card">
-                <CardHeader>
-                  <CardTitle>Evolução do Saldo</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Evolução Patrimonial</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={monthlyData.slice().reverse()}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis 
-                        dataKey="month" 
-                        tickFormatter={(value) => {
-                          const date = new Date(value + "-01");
-                          return date.toLocaleDateString("pt-BR", { month: "short" });
-                        }}
-                        className="text-xs"
-                      />
-                      <YAxis 
-                        tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
-                        className="text-xs"
-                      />
-                      <Tooltip 
-                        formatter={(value: number) => formatCurrency(value)}
-                        labelFormatter={(label) => {
-                          const date = new Date(label + "-01");
-                          return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-                        }}
-                      />
-                      <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="balance" 
-                        stroke="hsl(var(--primary))" 
-                        strokeWidth={2}
-                        name="Saldo"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {patrimonyData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={280}>
+                      <AreaChart data={patrimonyData}>
+                        <defs>
+                          <linearGradient id="patrimonyGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="month" tickFormatter={(v) => new Date(v + "-01").toLocaleDateString("pt-BR", { month: "short", year: "2-digit" })} className="text-xs" />
+                        <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} labelFormatter={(l) => new Date(l + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} />
+                        <Area type="monotone" dataKey="patrimony" stroke="hsl(var(--primary))" fill="url(#patrimonyGrad)" strokeWidth={2} name="Patrimônio" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : <p className="text-sm text-muted-foreground text-center py-12">Sem dados disponíveis.</p>}
                 </CardContent>
               </Card>
 
-              {/* Receitas vs Despesas */}
+              {/* Receitas vs Despesas (Bar) */}
               <Card className="bg-gradient-card">
-                <CardHeader>
-                  <CardTitle>Receitas vs Despesas</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Receitas vs Despesas</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
+                  <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={monthlyData.slice().reverse()}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis 
-                        dataKey="month"
-                        tickFormatter={(value) => {
-                          const date = new Date(value + "-01");
-                          return date.toLocaleDateString("pt-BR", { month: "short" });
-                        }}
-                        className="text-xs"
-                      />
-                      <YAxis 
-                        tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
-                        className="text-xs"
-                      />
-                      <Tooltip 
-                        formatter={(value: number) => formatCurrency(value)}
-                        labelFormatter={(label) => {
-                          const date = new Date(label + "-01");
-                          return date.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-                        }}
-                      />
+                      <XAxis dataKey="month" tickFormatter={(v) => new Date(v + "-01").toLocaleDateString("pt-BR", { month: "short" })} className="text-xs" />
+                      <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                      <Tooltip formatter={(v: number) => formatCurrency(v)} labelFormatter={(l) => new Date(l + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} />
                       <Legend />
-                      <Bar dataKey="income" fill="hsl(var(--success))" name="Receitas" />
-                      <Bar dataKey="expense" fill="hsl(var(--destructive))" name="Despesas" />
+                      <Bar dataKey="income" fill="hsl(var(--success))" name="Receitas" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="expense" fill="hsl(var(--destructive))" name="Despesas" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
+            </div>
 
-              {/* Distribuição por Categoria */}
+            {/* Row 2: Category expenses + Budget compliance */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Despesas por Categoria (Pie) */}
               <Card className="bg-gradient-card">
-                <CardHeader>
-                  <CardTitle>Despesas por Categoria</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">
+                    Despesas por Categoria — {new Date(selectedMonth + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={(() => {
-                          const categoryExpenses = new Map<string, number>();
-                          
-                          // Calcular despesas por categoria do mês selecionado
-                          budgets.forEach(b => {
-                            const expense = Math.abs(Math.min(b.balance, 0));
-                            if (expense > 0) {
-                              categoryExpenses.set(b.category_name, expense);
-                            }
-                          });
-
-                          const chartData = Array.from(categoryExpenses.entries())
-                            .map(([name, value]) => ({ name, value }))
-                            .sort((a, b) => b.value - a.value)
-                            .slice(0, 6);
-
-                          return chartData.length > 0 ? chartData : [{ name: "Sem dados", value: 0 }];
-                        })()}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="hsl(var(--primary))"
-                        dataKey="value"
-                      >
-                        {budgets.map((_, index) => (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={`hsl(${(index * 360) / Math.max(budgets.length, 1)}, 70%, 50%)`} 
-                          />
+                  {categoryExpenses.length > 0 ? (
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie
+                            data={categoryExpenses}
+                            cx="50%" cy="50%"
+                            innerRadius={50} outerRadius={90}
+                            dataKey="value"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {categoryExpenses.map((entry, i) => (
+                              <Cell key={i} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="space-y-1.5 w-full md:w-auto min-w-[160px]">
+                        {categoryExpenses.slice(0, 8).map((cat, i) => (
+                          <div key={i} className="flex items-center justify-between gap-3 text-sm">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: cat.color }} />
+                              <span className="truncate max-w-[120px]">{cat.emoji} {cat.name}</span>
+                            </div>
+                            <span className="font-medium text-xs">{formatCurrency(cat.value)}</span>
+                          </div>
                         ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                      </div>
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground text-center py-12">Sem despesas no período.</p>}
                 </CardContent>
               </Card>
 
-              {/* Comparativo Trimestral */}
+              {/* Cumprimento de Orçamento */}
               <Card className="bg-gradient-card">
-                <CardHeader>
-                  <CardTitle>Tendência Mensal</CardTitle>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">
+                    Orçamento vs Realizado — {new Date(selectedMonth + "-01").toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {monthlyData.slice(0, 6).map((data, index) => {
-                      const previousMonth = monthlyData[index + 1];
-                      const change = previousMonth 
-                        ? ((data.balance - previousMonth.balance) / Math.abs(previousMonth.balance || 1)) * 100
-                        : 0;
-                      
-                      return (
-                        <div key={data.month} className="flex items-center justify-between p-3 border rounded-lg border-border/50">
-                          <div className="flex-1">
-                            <p className="font-medium">
-                              {new Date(data.month + "-01").toLocaleDateString("pt-BR", { 
-                                month: "long", 
-                                year: "numeric" 
-                              })}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Saldo: {formatCurrency(data.balance)}
+                  {budgetComparison.length > 0 ? (
+                    <div className="space-y-4">
+                      {budgetComparison.map((item, i) => {
+                        const pct = item.budget !== 0 ? (item.actual / Math.abs(item.budget)) * 100 : 0;
+                        const isOver = item.budget >= 0 ? item.actual < item.budget : item.actual < item.budget;
+                        return (
+                          <div key={i} className="space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="font-medium truncate max-w-[140px]">{item.category}</span>
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-muted-foreground">Meta: {formatCurrency(item.budget)}</span>
+                                <span className={item.actual >= item.budget ? "text-success" : "text-destructive"}>
+                                  Real: {formatCurrency(item.actual)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full transition-all ${item.actual >= item.budget ? "bg-success" : "bg-destructive"}`}
+                                style={{ width: `${Math.min(Math.abs(pct), 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground text-center py-12">Nenhum orçamento definido para este mês.</p>}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Row 3: Moving average + Outliers */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Média Móvel de Gastos */}
+              <Card className="bg-gradient-card">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Tendência de Gastos (Média Móvel 3m)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {movingAvgData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={280}>
+                      <ComposedChart data={movingAvgData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="month" tickFormatter={(v) => new Date(v + "-01").toLocaleDateString("pt-BR", { month: "short" })} className="text-xs" />
+                        <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} labelFormatter={(l) => new Date(l + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} />
+                        <Legend />
+                        <Bar dataKey="expense" fill="hsl(var(--destructive))" name="Despesas" opacity={0.4} radius={[4, 4, 0, 0]} />
+                        <Line type="monotone" dataKey="avg3m" stroke="hsl(var(--warning))" strokeWidth={2.5} dot={false} name="Média 3 meses" connectNulls />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  ) : <p className="text-sm text-muted-foreground text-center py-12">Sem dados suficientes.</p>}
+                </CardContent>
+              </Card>
+
+              {/* Maiores Gastos / Outliers */}
+              <Card className="bg-gradient-card">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">
+                    Maiores Gastos — {new Date(selectedMonth + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {outliers.length > 0 ? (
+                    <div className="space-y-2 max-h-[280px] overflow-y-auto">
+                      {outliers.map((item, i) => (
+                        <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-medium text-sm truncate">{item.description}</span>
+                              {(item as any).isOutlier && (
+                                <Badge variant="destructive" className="text-[10px] px-1 py-0">outlier</Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {item.date.split("-").reverse().join("/")} • {item.category_name}
                             </p>
                           </div>
-                          {previousMonth && (
-                            <div className={`flex items-center gap-1 ${change >= 0 ? "text-success" : "text-destructive"}`}>
-                              {change >= 0 ? (
-                                <TrendingUp className="h-4 w-4" />
-                              ) : (
-                                <TrendingDown className="h-4 w-4" />
-                              )}
-                              <span className="text-sm font-medium">
-                                {Math.abs(change).toFixed(1)}%
+                          <span className="text-sm font-bold text-destructive ml-2 shrink-0">
+                            {formatCurrency(item.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground text-center py-12">Sem despesas no período.</p>}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Row 4: Account composition + Monthly variation */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Composição Patrimonial por Conta */}
+              <Card className="bg-gradient-card">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Composição Patrimonial</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {accountComposition.length > 0 ? (
+                    <div className="flex flex-col md:flex-row items-center gap-4">
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie
+                            data={accountComposition.filter(a => a.balance > 0)}
+                            cx="50%" cy="50%"
+                            innerRadius={45} outerRadius={85}
+                            dataKey="balance"
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                            labelLine={false}
+                          >
+                            {accountComposition.filter(a => a.balance > 0).map((_, i) => (
+                              <Cell key={i} fill={`hsl(${200 + i * 35}, 65%, ${50 + i * 5}%)`} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="space-y-1.5 w-full md:w-auto min-w-[160px]">
+                        {(() => {
+                          const typeLabels: Record<string, string> = { corrente: "Corrente", beneficio: "Benefício", investimento: "Investimento", cartao: "Cartão" };
+                          const byType = new Map<string, number>();
+                          accountComposition.forEach(a => {
+                            byType.set(a.type, (byType.get(a.type) || 0) + a.balance);
+                          });
+                          return Array.from(byType.entries()).map(([type, total], i) => (
+                            <div key={type} className="flex items-center justify-between gap-3 text-sm">
+                              <span>{typeLabels[type] || type}</span>
+                              <span className="font-medium text-xs">{formatCurrency(total)}</span>
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  ) : <p className="text-sm text-muted-foreground text-center py-12">Sem contas cadastradas.</p>}
+                </CardContent>
+              </Card>
+
+              {/* Variação Mensal */}
+              <Card className="bg-gradient-card">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Variação Mensal do Saldo</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2.5 max-h-[280px] overflow-y-auto">
+                    {monthlyData.slice(0, 8).map((data, index) => {
+                      const prev = monthlyData[index + 1];
+                      const change = prev ? ((data.balance - prev.balance) / Math.abs(prev.balance || 1)) * 100 : 0;
+                      return (
+                        <div key={data.month} className="flex items-center justify-between p-2.5 border rounded-lg border-border/50">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">
+                              {new Date(data.month + "-01").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                            </p>
+                            <div className="flex gap-3 text-xs text-muted-foreground">
+                              <span className="text-success">+{formatCurrency(data.income)}</span>
+                              <span className="text-destructive">-{formatCurrency(data.expense)}</span>
+                              <span className={data.balance >= 0 ? "text-success font-medium" : "text-destructive font-medium"}>
+                                = {formatCurrency(data.balance)}
                               </span>
+                            </div>
+                          </div>
+                          {prev && (
+                            <div className={`flex items-center gap-1 ${change >= 0 ? "text-success" : "text-destructive"}`}>
+                              {change >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                              <span className="text-sm font-medium">{Math.abs(change).toFixed(1)}%</span>
                             </div>
                           )}
                         </div>
