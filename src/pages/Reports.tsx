@@ -142,7 +142,7 @@ const Reports = () => {
       // Fetch accounts
       const { data: accountsData } = await supabase
         .from("accounts")
-        .select("id, name, balance")
+        .select("id, name, balance, type")
         .eq("user_id", user.id)
         .order("name", { ascending: true });
 
